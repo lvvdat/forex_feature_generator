@@ -17,8 +17,8 @@ namespace ForexFeatureGenerator
     class Program
     {
         // ============= CONFIGURATION =============
-        private static readonly string OUTPUT_DIR = $"logs";
-        private static readonly string LOG_FILE = Path.Combine(OUTPUT_DIR, $"log_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+        private static readonly string OUTPUT_DIR = "processed";
+        private static readonly string LOG_FILE = Path.Combine("logs", $"log_{DateTime.Now:yyyyMMdd_HHmmss}.log");
 
         // Label Generation Configuration
         private static readonly LabelGenerationConfig LABEL_CONFIG = new()
@@ -41,7 +41,11 @@ namespace ForexFeatureGenerator
             _globalStopwatch.Start();
 
             // Setup
-            Directory.CreateDirectory(OUTPUT_DIR);
+            if (!Directory.Exists(OUTPUT_DIR))
+                Directory.CreateDirectory(OUTPUT_DIR);
+
+            if (!Directory.Exists("logs"))
+                Directory.CreateDirectory("logs");
             _logWriter = new StreamWriter(LOG_FILE, false, Encoding.UTF8) { AutoFlush = true };
 
             // ===== PHASE 1: DATA LOADING =====
@@ -55,9 +59,10 @@ namespace ForexFeatureGenerator
             Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var filePath = Path.Combine(OUTPUT_DIR, $"features_labels_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-            var (ohlcBars, generatedLabels, featureVectors) = await GenerateFeaturesAndLabelsAsync(tickData);
-            await SaveGeneratedFeaturesLabelsAsync(filePath, ohlcBars, generatedLabels, featureVectors);
+            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
+            
+            AnalyzeGeneratedLabels(generatedLabels);
         }
 
 
@@ -169,23 +174,22 @@ namespace ForexFeatureGenerator
         }
 
         // ============= LABEL GENERATION FUNCTIONS =============
-        static async Task<(List<OhlcBar> bars, List<LabelResult> labels, List<FeatureVector> features)>
-            GenerateFeaturesAndLabelsAsync(List<TickData> tickData)
+        static async Task<List<LabelResult>>
+            GenerateFeaturesAndLabelsAsync(List<TickData> tickData, string outputPath)
         {
             return await Task.Run(() =>
             {
                 Log("Building feature pipeline...");
                 var pipeline = BuildComprehensivePipeline();
 
-                var ohlcBars = new List<OhlcBar>();
                 var labelResults = new List<LabelResult>();
-                var featureVectors = new List<FeatureVector>();
                 var m1Aggregator = pipeline.GetAggregator(TimeSpan.FromMinutes(1));
 
                 int barsProcessed = 0;
                 int warmupBars = 275;
                 int futureTicksNeeded = LABEL_CONFIG.MaxFutureTicks;
 
+                var alreadyHeaderWritten = false;
                 var maxTicks = tickData.Count; // Limit for performance
                 var progress = new ProgressReporter("Generating features and labels", maxTicks);
 
@@ -198,20 +202,45 @@ namespace ForexFeatureGenerator
                     {
                         barsProcessed++;
 
-                        if (barsProcessed > warmupBars)
+                        var features = pipeline.CalculateFeatures(completedBar.Timestamp);
+
+                        var currentTick = tickData[i];
+                        var futureTicks = tickData.Skip(i + 1).Take(futureTicksNeeded).ToList();
+
+                        var labelResult = LabelGenerator.GenerateLabel(LABEL_CONFIG, currentTick, futureTicks);
+
+                        if (labelResult != null)
                         {
-                            var features = pipeline.CalculateFeatures(completedBar.Timestamp);
+                            labelResults.Add(labelResult);
 
-                            var currentTick = tickData[i];
-                            var futureTicks = tickData.Skip(i + 1).Take(futureTicksNeeded).ToList();
-
-                            var labelResult = LabelGenerator.GenerateLabel(LABEL_CONFIG, currentTick, futureTicks);
-
-                            if (labelResult != null)
+                            if (barsProcessed > warmupBars)
                             {
-                                ohlcBars.Add(completedBar);
-                                labelResults.Add(labelResult);
-                                featureVectors.Add(features);
+                                if (alreadyHeaderWritten == false)
+                                {
+                                    // Write header
+                                    var headerLine = new StringBuilder();
+                                    foreach (var feature in features.Features)
+                                    {
+                                        headerLine.Append($",{feature.Key}");
+                                    }
+                                    headerLine.Append(",label,confidence,long_profit_pips,short_profit_pips");
+                                    File.WriteAllText(outputPath, headerLine.ToString() + Environment.NewLine);
+                                    alreadyHeaderWritten = true;
+                                }
+
+                                // Combine features and label into one output
+                                var outputLine = new StringBuilder();
+                                foreach (var feature in features.Features)
+                                {
+                                    outputLine.Append($",{feature.Value:F6}");
+                                }
+
+                                outputLine.Append($",{labelResult.Label}");
+                                outputLine.Append($",{labelResult.Confidence:F3}");
+                                outputLine.Append($",{labelResult.LongProfitPips:F2}");
+                                outputLine.Append($",{labelResult.ShortProfitPips:F2}");
+
+                                File.AppendAllText(outputPath, outputLine.ToString() + Environment.NewLine);
                             }
                         }
                     }
@@ -225,44 +254,8 @@ namespace ForexFeatureGenerator
                 progress.Complete();
                 Log($"  Processed {barsProcessed} M1 bars");
                 Log($"  Generated {labelResults.Count} feature vectors with labels");
-                Log($"  Total features available: {featureVectors[featureVectors.Count - 1].Count} features");
 
-                var last = featureVectors[featureVectors.Count - 1];
-
-                Dictionary<string, int> keys = new Dictionary<string, int>();
-
-                for (int i = 0; i < featureVectors.Count; i++)
-                {
-                    if (featureVectors[i].Count != last.Count)
-                    {
-                        var missingKeys = last.Features.Keys.Where(k => !featureVectors[i].Features.ContainsKey(k)).ToList();
-
-                        for (int j = 0; j < missingKeys.Count; j++)
-                        {
-                            if (!keys.ContainsKey(missingKeys[j]))
-                            {
-                                keys[missingKeys[j]] = 0;
-                            }
-                            keys[missingKeys[j]]++;
-                        }
-                    }
-                }
-
-                if (keys.Count > 0)
-                {
-                    Log($"\n  ⚠️ Inconsistent feature counts detected:", ConsoleColor.Yellow);
-                    foreach (var kvp in keys)
-                    {
-                        Log($"    - Missing '{kvp.Key}' in {kvp.Value} vectors", ConsoleColor.Yellow);
-                    }
-                }
-                else
-                {
-                    Log("  ✓ All feature vectors have consistent feature sets:");
-                    Log($"    {string.Join(",", last.Features.Keys)}");
-                }
-
-                return (ohlcBars, labelResults, featureVectors);
+                return (labelResults);
             });
         }
 
@@ -331,15 +324,6 @@ namespace ForexFeatureGenerator
             Log($"    Min: {confidences.Min():F3}");
             Log($"    Max: {confidences.Max():F3}");
         }
-
-        static async Task SaveGeneratedFeaturesLabelsAsync(string filelePath, List<OhlcBar> bars, List<LabelResult> labels, List<FeatureVector> features)
-        {
-            await Task.Run(() =>
-            {
-                Log($"  ✓ Saved generated labels to {filelePath} with {bars.Count} items");
-            });
-        }
-
 
         static void Log(string message, ConsoleColor color = ConsoleColor.White)
         {
