@@ -1,16 +1,18 @@
-﻿using ForexFeatureGenerator.Core.Models;
+﻿using System.Linq;
+using System.Text;
+using System.Diagnostics;
+
+using Parquet;
+using Parquet.Schema;
+using Parquet.Data;
+
+using ForexFeatureGenerator.Core.Models;
 using ForexFeatureGenerator.Features.Advanced;
 using ForexFeatureGenerator.Features.M1;
 using ForexFeatureGenerator.Features.M5;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
 using ForexFeatureGenerator.Utilities;
-using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
 
 namespace ForexFeatureGenerator
 {
@@ -59,9 +61,9 @@ namespace ForexFeatureGenerator
             Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels_{DateTime.Now:yyyyMMdd_HHmmss}.parquet");
             var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
-            
+
             AnalyzeGeneratedLabels(generatedLabels);
         }
 
@@ -69,46 +71,17 @@ namespace ForexFeatureGenerator
         // ============= DATA LOADING FUNCTIONS =============
         static async Task<List<TickData>> LoadTickDataAsync(string path)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 Log("Loading tick data...");
-                var ticks = new List<TickData>();
 
                 if (!File.Exists(path))
                 {
                     throw new FileNotFoundException($"  ⚠️ Tick data file not found: {path}");
                 }
 
-                var lines = File.ReadAllLines(path);
-                var progress = new ProgressReporter("Loading ticks", lines.Length - 1);
+                var ticks = await TickLoader.LoadTickDataAsync(path);
 
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    var parts = lines[i].Split(',');
-                    if (parts.Length >= 3)
-                    {
-                        try
-                        {
-                            ticks.Add(new TickData
-                            {
-                                Timestamp = DateTime.Parse(parts[0]),
-                                Bid = decimal.Parse(parts[1]),
-                                Ask = decimal.Parse(parts[2])
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Log($"  ⚠️ Error parsing line {i}: {ex.Message}", ConsoleColor.Yellow);
-                        }
-                    }
-
-                    if (i % 10000 == 0)
-                    {
-                        progress.Update(i);
-                    }
-                }
-
-                progress.Complete();
                 Log($"  ✓ Loaded {ticks.Count:N0} ticks");
 
                 return ticks;
@@ -177,7 +150,7 @@ namespace ForexFeatureGenerator
         static async Task<List<LabelResult>>
             GenerateFeaturesAndLabelsAsync(List<TickData> tickData, string outputPath)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 Log("Building feature pipeline...");
                 var pipeline = BuildComprehensivePipeline();
@@ -189,75 +162,166 @@ namespace ForexFeatureGenerator
                 int warmupBars = 275;
                 int futureTicksNeeded = LABEL_CONFIG.MaxFutureTicks;
 
-                var alreadyHeaderWritten = false;
-                var maxTicks = tickData.Count; // Limit for performance
+                var maxTicks = tickData.Count;
                 var progress = new ProgressReporter("Generating features and labels", maxTicks);
 
-                for (int i = 0; i < maxTicks; i++)
+                // Parquet-related (lazy init)
+                ParquetWriter? parquetWriter = null;
+                FileStream? outStream = null;
+                ParquetSchema? parquetSchema = null;
+
+                List<string>? featureNames = null;
+
+                // Cached fields (avoid schema lookups later)
+                List<DataField<double>>? featureFields = null;
+                DataField<int>? labelField = null;
+                DataField<double>? confidenceField = null;
+                DataField<double>? longPipsField = null;
+                DataField<double>? shortPipsField = null;
+
+                const int BatchSize = 100_000;
+                Dictionary<string, List<double>>? featureBuffers = null;
+                List<int>? labelBuffer = null;
+                List<double>? confidenceBuffer = null;
+                List<double>? longPipsBuffer = null;
+                List<double>? shortPipsBuffer = null;
+
+                async Task FlushBatchAsync()
                 {
-                    pipeline.ProcessTick(tickData[i]);
+                    if (parquetWriter is null || parquetSchema is null || featureBuffers is null ||
+                        labelBuffer is null || labelBuffer.Count == 0) return;
 
-                    var completedBar = m1Aggregator?.GetCompletedBar();
-                    if (completedBar != null)
+                    using (var rowGroup = parquetWriter.CreateRowGroup())
                     {
-                        barsProcessed++;
-
-                        var features = pipeline.CalculateFeatures(completedBar.Timestamp);
-
-                        var currentTick = tickData[i];
-                        var futureTicks = tickData.Skip(i + 1).Take(futureTicksNeeded).ToList();
-
-                        var labelResult = LabelGenerator.GenerateLabel(LABEL_CONFIG, currentTick, futureTicks);
-
-                        if (labelResult != null)
+                        // features (preserve order)
+                        for (int idx = 0; idx < featureNames!.Count; idx++)
                         {
-                            labelResults.Add(labelResult);
-
-                            if (barsProcessed > warmupBars)
-                            {
-                                if (alreadyHeaderWritten == false)
-                                {
-                                    // Write header
-                                    var headerLine = new StringBuilder();
-                                    foreach (var feature in features.Features)
-                                    {
-                                        headerLine.Append($",{feature.Key}");
-                                    }
-                                    headerLine.Append(",label,confidence,long_profit_pips,short_profit_pips");
-                                    File.WriteAllText(outputPath, headerLine.ToString() + Environment.NewLine);
-                                    alreadyHeaderWritten = true;
-                                }
-
-                                // Combine features and label into one output
-                                var outputLine = new StringBuilder();
-                                foreach (var feature in features.Features)
-                                {
-                                    outputLine.Append($",{feature.Value:F6}");
-                                }
-
-                                outputLine.Append($",{labelResult.Label}");
-                                outputLine.Append($",{labelResult.Confidence:F3}");
-                                outputLine.Append($",{labelResult.LongProfitPips:F2}");
-                                outputLine.Append($",{labelResult.ShortProfitPips:F2}");
-
-                                File.AppendAllText(outputPath, outputLine.ToString() + Environment.NewLine);
-                            }
+                            var fname = featureNames[idx];
+                            var f = featureFields![idx];
+                            await rowGroup.WriteColumnAsync(new DataColumn(f, featureBuffers[fname].ToArray()));
                         }
+
+                        await rowGroup.WriteColumnAsync(new DataColumn(labelField!, labelBuffer.ToArray()));
+                        await rowGroup.WriteColumnAsync(new DataColumn(confidenceField!, confidenceBuffer!.ToArray()));
+                        await rowGroup.WriteColumnAsync(new DataColumn(longPipsField!, longPipsBuffer!.ToArray()));
+                        await rowGroup.WriteColumnAsync(new DataColumn(shortPipsField!, shortPipsBuffer!.ToArray()));
                     }
 
-                    if (i % 1000 == 0)
-                    {
-                        progress.Update(i, $"Bars: {barsProcessed}, Labels: {labelResults.Count}");
-                    }
+                    foreach (var kv in featureBuffers!) kv.Value.Clear();
+                    labelBuffer!.Clear(); confidenceBuffer!.Clear(); longPipsBuffer!.Clear(); shortPipsBuffer!.Clear();
                 }
 
-                progress.Complete();
-                Log($"  Processed {barsProcessed} M1 bars");
-                Log($"  Generated {labelResults.Count} feature vectors with labels");
+                if (File.Exists(outputPath)) File.Delete(outputPath);
 
-                return (labelResults);
+                try
+                {
+                    for (int i = 0; i < maxTicks; i++)
+                    {
+                        pipeline.ProcessTick(tickData[i]);
+
+                        var completedBar = m1Aggregator?.GetCompletedBar();
+                        if (completedBar != null)
+                        {
+                            barsProcessed++;
+
+                            var features = pipeline.CalculateFeatures(completedBar.Timestamp);
+
+                            var currentTick = tickData[i];
+                            var futureTicks = tickData.Skip(i + 1).Take(futureTicksNeeded).ToList();
+
+                            var labelResult = LabelGenerator.GenerateLabel(LABEL_CONFIG, currentTick, futureTicks);
+
+                            if (labelResult != null)
+                            {
+                                labelResults.Add(labelResult);
+
+                                if (barsProcessed > warmupBars)
+                                {
+                                    // lazy init once we know feature names
+                                    if (parquetWriter is null)
+                                    {
+                                        featureNames = features.Features.Keys.ToList();
+
+                                        var fields = new List<Field>(featureNames.Count + 4);
+
+                                        featureFields = new List<DataField<double>>(featureNames.Count);
+                                        foreach (var fname in featureNames)
+                                        {
+                                            var f = new DataField<double>(fname);
+                                            featureFields.Add(f);
+                                            fields.Add(f);
+                                        }
+
+                                        labelField = new DataField<int>("label");
+                                        confidenceField = new DataField<double>("confidence");
+                                        longPipsField = new DataField<double>("long_profit_pips");
+                                        shortPipsField = new DataField<double>("short_profit_pips");
+
+                                        fields.Add(labelField);
+                                        fields.Add(confidenceField);
+                                        fields.Add(longPipsField);
+                                        fields.Add(shortPipsField);
+
+                                        parquetSchema = new ParquetSchema(fields);
+
+                                        outStream = File.Create(outputPath);
+                                        parquetWriter = await ParquetWriter.CreateAsync(parquetSchema, outStream);
+                                        parquetWriter.CompressionMethod = CompressionMethod.Snappy;
+
+                                        featureBuffers = featureNames.ToDictionary(n => n, _ => new List<double>(BatchSize));
+                                        labelBuffer = new List<int>(BatchSize);
+                                        confidenceBuffer = new List<double>(BatchSize);
+                                        longPipsBuffer = new List<double>(BatchSize);
+                                        shortPipsBuffer = new List<double>(BatchSize);
+                                    }
+
+                                    try
+                                    {
+                                        // append row into buffers
+                                        foreach (var fname in featureNames!)
+                                        {
+                                            if (features.Features.TryGetValue(fname, out var val))
+                                                featureBuffers![fname].Add(val);
+                                            else
+                                                featureBuffers![fname].Add(0.0);
+                                        }
+
+                                        labelBuffer!.Add(labelResult.Label);
+                                        confidenceBuffer!.Add(labelResult.Confidence);
+                                        longPipsBuffer!.Add(labelResult.LongProfitPips);
+                                        shortPipsBuffer!.Add(labelResult.ShortProfitPips);
+
+                                        if (labelBuffer!.Count >= BatchSize)
+                                            await FlushBatchAsync();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Log($"  ⚠️ Error buffering data at bar {barsProcessed}: {ex.Message}", ConsoleColor.Yellow);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (i % 1000 == 0)
+                            progress.Update(i, $"Bars: {barsProcessed}, Labels: {labelResults.Count}");
+                    }
+
+                    await FlushBatchAsync();
+
+                    progress.Complete();
+                    Log($"  Processed {barsProcessed} M1 bars");
+                    Log($"  Generated {labelResults.Count} feature vectors with labels");
+
+                    return labelResults;
+                }
+                finally
+                {
+                    if (parquetWriter is not null) await parquetWriter.DisposeAsync();
+                    outStream?.Dispose();
+                }
             });
         }
+
 
         static FeaturePipeline BuildComprehensivePipeline()
         {
