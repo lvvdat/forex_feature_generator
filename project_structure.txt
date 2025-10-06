@@ -1,0 +1,10 @@
+﻿ForexFeatureGenerator/
+├── src/
+│   ├── ForexFeatureGenerator.Core/           # Core domain models and interfaces
+│   ├── ForexFeatureGenerator.Features/       # Feature calculation implementations
+│   ├── ForexFeatureGenerator.Processing/     # Data processing pipeline
+│   ├── ForexFeatureGenerator.IO/             # Input/Output handling
+│   ├── ForexFeatureGenerator.Console/        # Console application
+│   └── ForexFeatureGenerator.Tests/          # Unit tests
+├── ForexFeatureGenerator.sln
+└── README.md
