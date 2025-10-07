@@ -146,8 +146,8 @@ namespace ForexFeatureGenerator.Features.Advanced
                 TotalSellVolume = sellVolume,
                 NetOrderFlow = netFlow,
                 CumulativeDelta = (decimal)cumulativeDelta,
-                BuyTradeCount = bar.UpTicks,
-                SellTradeCount = bar.DownTicks,
+                BuyTradeCount = bar.UpVolume,
+                SellTradeCount = bar.DownVolume,
                 PressureRatio = (decimal)pressureRatio
             });
         }

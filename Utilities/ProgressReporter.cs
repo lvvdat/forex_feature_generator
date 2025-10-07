@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Reflection.Metadata;
 
 namespace ForexFeatureGenerator.Utilities
 {

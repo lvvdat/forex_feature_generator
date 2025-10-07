@@ -1,18 +1,17 @@
-﻿using System.Linq;
-using System.Text;
-using System.Diagnostics;
-
-using Parquet;
-using Parquet.Schema;
-using Parquet.Data;
-
-using ForexFeatureGenerator.Core.Models;
+﻿using ForexFeatureGenerator.Core.Models;
 using ForexFeatureGenerator.Features.Advanced;
 using ForexFeatureGenerator.Features.M1;
 using ForexFeatureGenerator.Features.M5;
+using ForexFeatureGenerator.Integration;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
 using ForexFeatureGenerator.Utilities;
+using Parquet;
+using Parquet.Data;
+using Parquet.Schema;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
 
 namespace ForexFeatureGenerator
 {
@@ -41,7 +40,7 @@ namespace ForexFeatureGenerator
 
             var inputPath = args.Length > 0 ? args[0] : throw new ArgumentException("Input tick data file path is required as the first argument.");
             var outputDir = args.Length > 1 ? args[1] : "output";
-            
+
             _globalStopwatch.Start();
 
             // Setup
@@ -52,23 +51,38 @@ namespace ForexFeatureGenerator
                 Directory.CreateDirectory("logs");
             _logWriter = new StreamWriter(LOG_FILE, false, Encoding.UTF8) { AutoFlush = true };
 
-            // ===== PHASE 1: DATA LOADING =====
-            Log("PHASE 1: DATA LOADING", ConsoleColor.Cyan);
-            Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
-
-            var tickData = await LoadTickDataAsync(inputPath);
-            ValidateTickData(tickData);
-
-            // ===== PHASE 2: LABEL GENERATION =====
-            Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
-            Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
-
             var outputPath = Path.Combine(outputDir, $"features_labels.parquet");
-            var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
 
-            AnalyzeGeneratedLabels(generatedLabels);
+            if (!File.Exists(outputPath))
+            {
+                // ===== PHASE 1: DATA LOADING =====
+                Log("PHASE 1: DATA LOADING", ConsoleColor.Cyan);
+                Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
+
+                var tickData = await LoadTickDataAsync(inputPath);
+                ValidateTickData(tickData);
+
+                // ===== PHASE 2: LABEL GENERATION =====
+                Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
+                Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
+
+                var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
+
+                AnalyzeGeneratedLabels(generatedLabels);
+            }
+            else
+            {
+                Log($"Features and labels file already exists at: {outputPath}", ConsoleColor.Yellow);
+                Log("Skipping data loading and label generation phases.");
+            }
+
+            Log("\nPHASE 3: FEATURE NORMALIZATION", ConsoleColor.Cyan);
+            Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
+
+            var normalizer = new NormalizerIntegration();
+            string normalizedPath = Path.Combine(outputDir, "features_normalized.parquet");
+            await normalizer.TrainAndSaveNormalizer(outputPath, normalizedPath);
         }
-
 
         // ============= DATA LOADING FUNCTIONS =============
         static async Task<List<TickData>> LoadTickDataAsync(string path)

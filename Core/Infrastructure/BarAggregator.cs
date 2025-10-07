@@ -19,10 +19,8 @@ namespace ForexFeatureGenerator.Core.Infrastructure
         private readonly List<TickData> _currentTicks = new();
         private OhlcBar? _lastCompletedBar;
         private decimal _lastBid;
-        private int _upTicks;
-        private int _downTicks;
-        private decimal _upVolume;
-        private decimal _downVolume;
+        private int _upVolume;
+        private int _downVolume;
 
         public TimeSpan Timeframe { get; }
         public int HistoricalBarCount => _historicalBars.Count;
@@ -43,8 +41,6 @@ namespace ForexFeatureGenerator.Core.Infrastructure
                 // Finalize current bar with tick statistics
                 _currentBar = _currentBar with
                 {
-                    UpTicks = _upTicks,
-                    DownTicks = _downTicks,
                     UpVolume = _upVolume,
                     DownVolume = _downVolume
                 };
@@ -55,8 +51,6 @@ namespace ForexFeatureGenerator.Core.Infrastructure
                 // Reset for new bar
                 _currentBar = null;
                 _currentTicks.Clear();
-                _upTicks = 0;
-                _downTicks = 0;
                 _upVolume = 0;
                 _downVolume = 0;
             }
@@ -66,12 +60,10 @@ namespace ForexFeatureGenerator.Core.Infrastructure
             {
                 if (tick.Bid > _lastBid)
                 {
-                    _upTicks++;
                     _upVolume += 1; // In forex, we use tick count as volume proxy
                 }
                 else if (tick.Bid < _lastBid)
                 {
-                    _downTicks++;
                     _downVolume += 1;
                 }
             }
