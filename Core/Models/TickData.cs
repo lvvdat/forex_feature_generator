@@ -8,6 +8,5 @@
 
         public decimal MidPrice => (Bid + Ask) / 2;
         public decimal Spread => Ask - Bid;
-        public decimal SpreadBps => (Spread / MidPrice) * 10000;
     }
 }

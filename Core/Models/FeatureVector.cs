@@ -15,11 +15,5 @@
             }
             Features[name] = value;
         }
-
-        public double GetFeature(string name) => Features.GetValueOrDefault(name, 0.0);
-        public void RemoveFeature(string name) => Features.Remove(name);
-        public IEnumerable<string> GetFeatureNames() => Features.Keys;
-
-        public int Count => Features.Count;
     }
 }

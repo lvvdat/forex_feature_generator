@@ -19,7 +19,6 @@ namespace ForexFeatureGenerator
     class Program
     {
         // ============= CONFIGURATION =============
-        private static readonly string OUTPUT_DIR = "D:\\Projects\\NexusTradingSystem\\data\\processed";
         private static readonly string LOG_FILE = Path.Combine("logs", $"log_{DateTime.Now:yyyyMMdd_HHmmss}.log");
 
         // Label Generation Configuration
@@ -40,11 +39,14 @@ namespace ForexFeatureGenerator
             Console.OutputEncoding = Encoding.UTF8;
             Console.InputEncoding = Encoding.UTF8;
 
+            var inputPath = args.Length > 0 ? args[0] : throw new ArgumentException("Input tick data file path is required as the first argument.");
+            var outputDir = args.Length > 1 ? args[1] : "output";
+            
             _globalStopwatch.Start();
 
             // Setup
-            if (!Directory.Exists(OUTPUT_DIR))
-                Directory.CreateDirectory(OUTPUT_DIR);
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
 
             if (!Directory.Exists("logs"))
                 Directory.CreateDirectory("logs");
@@ -54,14 +56,14 @@ namespace ForexFeatureGenerator
             Log("PHASE 1: DATA LOADING", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var tickData = await LoadTickDataAsync("D:\\Projects\\NexusTradingSystem\\data\\raw\\ticks_data.csv");
+            var tickData = await LoadTickDataAsync(inputPath);
             ValidateTickData(tickData);
 
             // ===== PHASE 2: LABEL GENERATION =====
             Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels.parquet");
+            var outputPath = Path.Combine(outputDir, $"features_labels.parquet");
             var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
 
             AnalyzeGeneratedLabels(generatedLabels);
@@ -172,26 +174,31 @@ namespace ForexFeatureGenerator
 
                 List<string>? featureNames = null;
 
-                // Cached fields (avoid schema lookups later)
-                List<DataField<double>>? featureFields = null;
+                const int BatchSize = 100_000;
 
+                // Cached fields (avoid schema lookups later)
+
+                List<DataField<double>>? featureFields = null;
+                Dictionary<string, List<double>>? featureBuffers = null;
+
+                List<int>? labelBuffer = null;
                 DataField<int>? labelField = null;
+
+                List<double>? confidenceBuffer = null;
                 DataField<double>? confidenceField = null;
+
+                List<double>? longPipsBuffer = null;
                 DataField<double>? longPipsField = null;
+
+                List<double>? shortPipsBuffer = null;
                 DataField<double>? shortPipsField = null;
 
-                const int BatchSize = 100_000;
-                Dictionary<string, List<double>>? featureBuffers = null;
-                
-                List<int>? labelBuffer = null;
-                List<double>? confidenceBuffer = null;
-                List<double>? longPipsBuffer = null;
-                List<double>? shortPipsBuffer = null;
+                List<long>? timeBuffer = null;
+                DataField<long>? timeField = null;
 
                 async Task FlushBatchAsync()
                 {
-                    if (parquetWriter is null || parquetSchema is null || featureBuffers is null ||
-                        labelBuffer is null || labelBuffer.Count == 0) return;
+                    if (parquetWriter is null || parquetSchema is null || featureBuffers is null || labelBuffer is null || labelBuffer.Count == 0) return;
 
                     using (var rowGroup = parquetWriter.CreateRowGroup())
                     {
@@ -206,7 +213,9 @@ namespace ForexFeatureGenerator
                         await rowGroup.WriteColumnAsync(new DataColumn(labelField!, labelBuffer.ToArray()));
                         await rowGroup.WriteColumnAsync(new DataColumn(confidenceField!, confidenceBuffer!.ToArray()));
                         await rowGroup.WriteColumnAsync(new DataColumn(longPipsField!, longPipsBuffer!.ToArray()));
-                        await rowGroup.WriteColumnAsync(new DataColumn(shortPipsField!, shortPipsBuffer!.ToArray()));                        
+                        await rowGroup.WriteColumnAsync(new DataColumn(shortPipsField!, shortPipsBuffer!.ToArray()));
+
+                        await rowGroup.WriteColumnAsync(new DataColumn(timeField!, timeBuffer!.ToArray()));
                     }
 
                     foreach (var kv in featureBuffers!)
@@ -216,6 +225,8 @@ namespace ForexFeatureGenerator
                     confidenceBuffer!.Clear();
                     longPipsBuffer!.Clear();
                     shortPipsBuffer!.Clear();
+
+                    timeBuffer!.Clear();
                 }
 
                 if (File.Exists(outputPath)) File.Delete(outputPath);
@@ -260,15 +271,19 @@ namespace ForexFeatureGenerator
                                         }
 
                                         labelField = new DataField<int>("label");
-                                        confidenceField = new DataField<double>("confidence");
-                                        longPipsField = new DataField<double>("long_profit_pips");
-                                        shortPipsField = new DataField<double>("short_profit_pips");
-
-
                                         fields.Add(labelField);
+
+                                        confidenceField = new DataField<double>("confidence");
                                         fields.Add(confidenceField);
+
+                                        longPipsField = new DataField<double>("long_profit_pips");
                                         fields.Add(longPipsField);
+
+                                        shortPipsField = new DataField<double>("short_profit_pips");
                                         fields.Add(shortPipsField);
+
+                                        timeField = new DataField<long>("timestamp");
+                                        fields.Add(timeField);
 
                                         parquetSchema = new ParquetSchema(fields);
 
@@ -277,10 +292,12 @@ namespace ForexFeatureGenerator
                                         parquetWriter.CompressionMethod = CompressionMethod.Snappy;
 
                                         featureBuffers = featureNames.ToDictionary(n => n, _ => new List<double>(BatchSize));
+                                        
                                         labelBuffer = new List<int>(BatchSize);
                                         confidenceBuffer = new List<double>(BatchSize);
                                         longPipsBuffer = new List<double>(BatchSize);
                                         shortPipsBuffer = new List<double>(BatchSize);
+                                        timeBuffer = new List<long>(BatchSize);
                                     }
 
                                     try
@@ -298,6 +315,8 @@ namespace ForexFeatureGenerator
                                         confidenceBuffer!.Add(labelResult.Confidence);
                                         longPipsBuffer!.Add(labelResult.LongProfitPips);
                                         shortPipsBuffer!.Add(labelResult.ShortProfitPips);
+
+                                        timeBuffer!.Add(completedBar.Timestamp.Ticks);
 
                                         if (labelBuffer!.Count >= BatchSize)
                                             await FlushBatchAsync();

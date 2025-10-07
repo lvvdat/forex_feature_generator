@@ -9,7 +9,6 @@
         public decimal Low { get; init; }
         public decimal Close { get; init; }
         public decimal TypicalPrice => (High + Low + Close) / 3;
-        public decimal WeightedClose => (High + Low + 2 * Close) / 4;
         public int TickVolume { get; init; }
         public int UpTicks { get; init; }      // NEW
         public int DownTicks { get; init; }    // NEW
