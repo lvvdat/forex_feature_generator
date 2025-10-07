@@ -51,7 +51,7 @@ namespace ForexFeatureGenerator
                 Directory.CreateDirectory("logs");
             _logWriter = new StreamWriter(LOG_FILE, false, Encoding.UTF8) { AutoFlush = true };
 
-            var outputPath = Path.Combine(outputDir, $"features_labels.parquet");
+            var outputPath = Path.Combine(outputDir, "features_labels.parquet");
 
             if (!File.Exists(outputPath))
             {
@@ -79,8 +79,8 @@ namespace ForexFeatureGenerator
             Log("\nPHASE 3: FEATURE NORMALIZATION", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var normalizer = new NormalizerIntegration();
-            string normalizedPath = Path.Combine(outputDir, "features_normalized.parquet");
+            var normalizer = new NormalizerIntegration(_logWriter);
+            string normalizedPath = Path.Combine(outputDir, "features_labels_normalized.parquet");
             await normalizer.TrainAndSaveNormalizer(outputPath, normalizedPath);
         }
 

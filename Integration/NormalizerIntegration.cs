@@ -1,10 +1,10 @@
-﻿using Parquet;
-using Parquet.Data;
-using Parquet.Schema;
-
-using ForexFeatureGenerator.Core.Models;
+﻿using ForexFeatureGenerator.Core.Models;
 using ForexFeatureGenerator.Normalization;
 using ForexFeatureGenerator.Pipeline;
+using Parquet;
+using Parquet.Data;
+using Parquet.Schema;
+using System.Reflection.Metadata;
 
 namespace ForexFeatureGenerator.Integration
 {
@@ -16,9 +16,11 @@ namespace ForexFeatureGenerator.Integration
     {
         private readonly ComprehensiveFeatureNormalizer _normalizer;
         private readonly string _normalizerPath = "normalizer_params.json";
+        private StreamWriter _logWriter;
 
-        public NormalizerIntegration()
+        public NormalizerIntegration(StreamWriter logWriter)
         {
+            _logWriter = logWriter;
             _normalizer = new ComprehensiveFeatureNormalizer();
         }
 
@@ -28,13 +30,13 @@ namespace ForexFeatureGenerator.Integration
         /// </summary>
         public async Task TrainAndSaveNormalizer(string inputParquetPath, string outputParquetPath)
         {
-            Console.WriteLine("=== TRAINING PHASE: Fitting Normalizer ===");
-            Console.WriteLine($"Loading features from: {inputParquetPath}");
+            Log("=== TRAINING PHASE: Fitting Normalizer ===");
+            Log($"Loading features from: {inputParquetPath}");
 
             // Step 1: Load the feature data from parquet
             var (features, labels, timestamps) = await LoadFeaturesFromParquet(inputParquetPath);
 
-            Console.WriteLine($"Loaded {features.First().Value.Length} samples with {features.Count} features");
+            Log($"Loaded {features.First().Value.Length} samples with {features.Count} features");
 
             // Step 2: Split data into train/validation sets (80/20 split)
             int totalSamples = features.First().Value.Length;
@@ -49,36 +51,36 @@ namespace ForexFeatureGenerator.Integration
                 validFeatures[kvp.Key] = kvp.Value.Skip(trainSize).ToArray();
             }
 
-            Console.WriteLine($"Training set: {trainSize} samples");
-            Console.WriteLine($"Validation set: {totalSamples - trainSize} samples");
+            Log($"Training set: {trainSize} samples");
+            Log($"Validation set: {totalSamples - trainSize} samples");
 
             // Step 3: Fit normalizer ONLY on training data (prevent data leakage)
-            Console.WriteLine("\nFitting normalizer on training data...");
+            Log("\nFitting normalizer on training data...");
             _normalizer.Fit(trainFeatures);
 
             // Step 4: Transform both training and validation data
-            Console.WriteLine("Transforming features...");
+            Log("Transforming features...");
             var trainNormalized = _normalizer.TransformBatch(trainFeatures);
             var validNormalized = _normalizer.TransformBatch(validFeatures);
 
             // Step 5: Validate normalization
-            Console.WriteLine("\nValidating normalization...");
+            Log("\nValidating normalization...");
             var stats = _normalizer.ValidateNormalization(trainNormalized);
 
             // Print validation summary
             var invalidFeatures = stats.Where(s => !s.Value.IsValid).ToList();
             if (invalidFeatures.Any())
             {
-                Console.WriteLine($"Warning: {invalidFeatures.Count} features failed validation:");
+                Log($"Warning: {invalidFeatures.Count} features failed validation:");
                 foreach (var feature in invalidFeatures.Take(5))
                 {
                     var stat = feature.Value;
-                    Console.WriteLine($"  - {stat.FeatureName}: Mean={stat.Mean:F4}, StdDev={stat.StdDev:F4}, Min={stat.Min:F4}, Max={stat.Max:F4}");
+                    Log($"  - {stat.FeatureName}: Mean={stat.Mean:F4}, StdDev={stat.StdDev:F4}, Min={stat.Min:F4}, Max={stat.Max:F4}");
                 }
             }
             else
             {
-                Console.WriteLine("✓ All features normalized successfully");
+                Log("✓ All features normalized successfully");
             }
 
             // Check for NaN or Infinity values
@@ -86,26 +88,25 @@ namespace ForexFeatureGenerator.Integration
             var infFeatures = stats.Where(s => s.Value.HasInfinity).Select(s => s.Key).ToList();
 
             if (nanFeatures.Any())
-                Console.WriteLine($"Warning: {nanFeatures.Count} features contain NaN values");
+                Log($"Warning: {nanFeatures.Count} features contain NaN values");
             if (infFeatures.Any())
-                Console.WriteLine($"Warning: {infFeatures.Count} features contain Infinity values");
+                Log($"Warning: {infFeatures.Count} features contain Infinity values");
 
             // Step 6: Save normalizer parameters for production use
-            Console.WriteLine($"\nSaving normalizer parameters to: {_normalizerPath}");
+            Log($"\nSaving normalizer parameters to: {_normalizerPath}");
             _normalizer.SaveToFile(_normalizerPath);
 
             // Step 7: Save normalized data for model training
             if (!string.IsNullOrEmpty(outputParquetPath))
             {
-                Console.WriteLine($"Saving normalized features to: {outputParquetPath}");
-                await SaveNormalizedFeatures(outputParquetPath, trainNormalized, validNormalized,
-                                            labels, timestamps);
+                Log($"Saving normalized features to: {outputParquetPath}");
+                await SaveNormalizedFeatures(outputParquetPath, trainNormalized, validNormalized, labels, timestamps);
             }
 
             // Print normalization statistics
             PrintNormalizationSummary(stats);
 
-            Console.WriteLine("\n=== Training Phase Complete ===");
+            Log("\n=== Training Phase Complete ===");
         }
 
         /// <summary>
@@ -368,12 +369,9 @@ namespace ForexFeatureGenerator.Integration
                     }
 
                     // Write labels, timestamps, and train flags
-                    await rowGroup.WriteColumnAsync(
-                        new DataColumn(schema.GetDataFields().First(f => f.Name == "label"), labels));
-                    await rowGroup.WriteColumnAsync(
-                        new DataColumn(schema.GetDataFields().First(f => f.Name == "timestamp"), timestamps));
-                    await rowGroup.WriteColumnAsync(
-                        new DataColumn(schema.GetDataFields().First(f => f.Name == "is_train"), isTrainFlags));
+                    await rowGroup.WriteColumnAsync(new DataColumn(schema.GetDataFields().First(f => f.Name == "label"), labels));
+                    await rowGroup.WriteColumnAsync(new DataColumn(schema.GetDataFields().First(f => f.Name == "timestamp"), timestamps));
+                    await rowGroup.WriteColumnAsync(new DataColumn(schema.GetDataFields().First(f => f.Name == "is_train"), isTrainFlags));
                 }
             }
         }
@@ -384,7 +382,7 @@ namespace ForexFeatureGenerator.Integration
         private void PrintNormalizationSummary(
             Dictionary<string, ComprehensiveFeatureNormalizer.NormalizationStats> stats)
         {
-            Console.WriteLine("\n=== Normalization Summary ===");
+            Log("\n=== Normalization Summary ===");
 
             // Group by scaler type
             var grouped = stats.GroupBy(s => s.Value.ScalerType);
@@ -394,25 +392,37 @@ namespace ForexFeatureGenerator.Integration
                 var scalerType = group.Key;
                 var features = group.ToList();
 
-                Console.WriteLine($"\n{scalerType}: {features.Count} features");
+                Log($"\n{scalerType}: {features.Count} features");
 
                 // Calculate aggregate statistics
                 var validCount = features.Count(f => f.Value.IsValid);
                 var avgMean = features.Average(f => Math.Abs(f.Value.Mean));
                 var avgStd = features.Average(f => f.Value.StdDev);
 
-                Console.WriteLine($"  Valid: {validCount}/{features.Count}");
-                Console.WriteLine($"  Avg |Mean|: {avgMean:F4}");
-                Console.WriteLine($"  Avg StdDev: {avgStd:F4}");
+                Log($"  Valid: {validCount}/{features.Count}");
+                Log($"  Avg |Mean|: {avgMean:F4}");
+                Log($"  Avg StdDev: {avgStd:F4}");
 
                 // Show sample features
-                Console.WriteLine($"  Sample features: {string.Join(", ", features.Take(3).Select(f => f.Key))}");
+                Log($"  Sample features: {string.Join(", ", features.Take(3).Select(f => f.Key))}");
             }
 
             // Overall statistics
-            Console.WriteLine($"\nTotal features: {stats.Count}");
-            Console.WriteLine($"Features normalized: {stats.Count(s => s.Value.ScalerType != "None")}");
-            Console.WriteLine($"Features unchanged: {stats.Count(s => s.Value.ScalerType == "None")}");
+            Log($"\nTotal features: {stats.Count}");
+            Log($"Features normalized: {stats.Count(s => s.Value.ScalerType != "None")}");
+            Log($"Features unchanged: {stats.Count(s => s.Value.ScalerType == "None")}");
+        }
+
+        private void Log(string message, ConsoleColor color = ConsoleColor.White)
+        {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var logMessage = $"[{timestamp}] {message}";
+
+            Console.ForegroundColor = color;
+            Log(message);
+            Console.ResetColor();
+
+            _logWriter?.WriteLine(logMessage);
         }
 
         #endregion
