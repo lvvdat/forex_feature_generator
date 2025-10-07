@@ -50,5 +50,4 @@ namespace ForexFeatureGenerator.Features.M1
             _prevRoc5 = 0;
         }
     }
-
 }

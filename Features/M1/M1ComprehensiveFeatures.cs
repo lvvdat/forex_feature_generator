@@ -111,7 +111,34 @@ namespace ForexFeatureGenerator.Features.M1
                 var ema26 = EMA(bars, 26, currentIndex);
                 var macdLine = ema12 - ema26;
 
-                output.AddFeature("fg1_macd_line", macdLine);
+                output.AddFeature("fg1_macd_line", macdLine * 10000);
+
+                if (currentIndex >= 35)
+                {
+                    // Calculate signal line (9-period EMA of MACD)
+                    var macdValues = new List<double>();
+                    for (int i = currentIndex - 8; i <= currentIndex; i++)
+                    {
+                        var e12 = EMA(bars, 12, i);
+                        var e26 = EMA(bars, 26, i);
+                        macdValues.Add(e12 - e26);
+                    }
+                    var macdSignal = macdValues.Average(); // Simplified
+                    var macdHist = macdLine - macdSignal;
+
+                    output.AddFeature("fg1_macd_signal", macdSignal * 10000);
+                    output.AddFeature("fg1_macd_histogram", macdHist * 10000);
+
+                    // MACD Cross
+                    if (currentIndex >= 36)
+                    {
+                        var prevMacdLine = EMA(bars, 12, currentIndex - 1) - EMA(bars, 26, currentIndex - 1);
+                        var cross = 0.0;
+                        if (macdLine > macdSignal && prevMacdLine <= macdSignal) cross = 1.0;
+                        else if (macdLine < macdSignal && prevMacdLine >= macdSignal) cross = -1.0;
+                        output.AddFeature("fg1_macd_cross", cross);
+                    }
+                }
             }
 
             // ===== AROON =====

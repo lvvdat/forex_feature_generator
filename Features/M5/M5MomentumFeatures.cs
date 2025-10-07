@@ -157,8 +157,7 @@ namespace ForexFeatureGenerator.Features.M5
             {
                 var priceTrend = CalculateTrend(bars, currentIndex, 10, true);
                 var momentumTrend = CalculateTrend(bars, currentIndex, 10, false);
-                var divergence = (priceTrend > 0 && momentumTrend < 0) ? -1.0 :
-                               (priceTrend < 0 && momentumTrend > 0) ? 1.0 : 0.0;
+                var divergence = (priceTrend > 0 && momentumTrend < 0) ? -1.0 : (priceTrend < 0 && momentumTrend > 0) ? 1.0 : 0.0;
                 output.AddFeature("fg3_momentum_divergence", divergence);
             }
         }
