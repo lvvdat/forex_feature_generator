@@ -17,9 +17,11 @@ namespace ForexFeatureGenerator.Features.M1
             var bar = bars[currentIndex];
 
             // ===== VOLUME-BASED FEATURES =====
-            output.AddFeature("fg1_up_volume_pct", (double)bar.UpTicks / bar.TickVolume * 100);
-            output.AddFeature("fg1_down_volume_pct", (double)bar.DownTicks / bar.TickVolume * 100);
-            output.AddFeature("fg1_volume_imbalance", ((double)bar.UpTicks - bar.DownTicks) / bar.TickVolume);
+            output.AddFeature("fg1_up_volume_pct", (double)bar.UpVolume / bar.TickVolume * 100);
+            output.AddFeature("fg1_down_volume_pct", (double)bar.DownVolume / bar.TickVolume * 100);
+
+            var volume_imbalance = (double)(bar.UpVolume - bar.DownVolume);
+            output.AddFeature("fg1_volume_imbalance", volume_imbalance / bar.TickVolume);
 
             // ===== PRICE-BASED FEATURES =====
             var range = (double)(bar.High - bar.Low);

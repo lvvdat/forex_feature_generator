@@ -20,8 +20,6 @@ namespace ForexFeatureGenerator.Features.M1
             var ema5 = EMA(bars, 5, currentIndex);
             var ema8 = EMA(bars, 8, currentIndex);
 
-            output.AddFeature("fg1_ema_5", ema5);
-            output.AddFeature("fg1_ema_8", ema8);
             output.AddFeature("fg1_ema_ratio", SafeDiv(ema5, ema8, 1.0));
 
             // Rate of Change

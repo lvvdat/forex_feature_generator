@@ -18,7 +18,7 @@ namespace ForexFeatureGenerator.Core.Infrastructure
         private OhlcBar? _currentBar;
         private readonly List<TickData> _currentTicks = new();
         private OhlcBar? _lastCompletedBar;
-        private decimal _lastMidPrice;
+        private decimal _lastBid;
         private int _upTicks;
         private int _downTicks;
         private decimal _upVolume;
@@ -62,20 +62,20 @@ namespace ForexFeatureGenerator.Core.Infrastructure
             }
 
             // Determine tick direction
-            if (_lastMidPrice > 0)
+            if (_lastBid > 0)
             {
-                if (tick.MidPrice > _lastMidPrice)
+                if (tick.Bid > _lastBid)
                 {
                     _upTicks++;
                     _upVolume += 1; // In forex, we use tick count as volume proxy
                 }
-                else if (tick.MidPrice < _lastMidPrice)
+                else if (tick.Bid < _lastBid)
                 {
                     _downTicks++;
                     _downVolume += 1;
                 }
             }
-            _lastMidPrice = tick.MidPrice;
+            _lastBid = tick.Bid;
 
             // Start new bar or update current
             if (_currentBar == null)
@@ -84,10 +84,10 @@ namespace ForexFeatureGenerator.Core.Infrastructure
                 {
                     Timestamp = barTime,
                     Timeframe = Timeframe,
-                    Open = tick.MidPrice,
-                    High = tick.MidPrice,
-                    Low = tick.MidPrice,
-                    Close = tick.MidPrice,
+                    Open = tick.Bid,
+                    High = tick.Bid,
+                    Low = tick.Bid,
+                    Close = tick.Bid,
                     TickVolume = 1,
                     AvgSpread = tick.Spread,
                     MaxSpread = tick.Spread,
@@ -98,9 +98,9 @@ namespace ForexFeatureGenerator.Core.Infrastructure
             {
                 _currentBar = _currentBar with
                 {
-                    High = Math.Max(_currentBar.High, tick.MidPrice),
-                    Low = Math.Min(_currentBar.Low, tick.MidPrice),
-                    Close = tick.MidPrice,
+                    High = Math.Max(_currentBar.High, tick.Bid),
+                    Low = Math.Min(_currentBar.Low, tick.Bid),
+                    Close = tick.Bid,
                     TickVolume = _currentBar.TickVolume + 1,
                     MaxSpread = Math.Max(_currentBar.MaxSpread, tick.Spread),
                     MinSpread = Math.Min(_currentBar.MinSpread, tick.Spread)

@@ -10,8 +10,6 @@
         public decimal Close { get; init; }
         public decimal TypicalPrice => (High + Low + Close) / 3;
         public int TickVolume { get; init; }
-        public int UpTicks { get; init; }      // NEW
-        public int DownTicks { get; init; }    // NEW
         public decimal UpVolume { get; init; } // NEW - sum of up tick volumes
         public decimal DownVolume { get; init; } // NEW - sum of down tick volumes
         public decimal AvgSpread { get; init; }
