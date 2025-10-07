@@ -10,7 +10,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "Liquidity";
         public override string Category => "Liquidity";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
-        public override int Priority => 15;
+        public override int Priority => 11;
 
         private readonly RollingWindow<double> _spreadHistory = new(100);
         private readonly RollingWindow<double> _tickRateHistory = new(100);
@@ -27,18 +27,18 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // Tick rate (ticks per minute)
             var tickRate = (double)bar.TickVolume / 1.0; // Assuming 1-minute bars
-            output.AddFeature("adv_liquidity_tick_rate", tickRate);
+            output.AddFeature("fg2_liquidity_tick_rate", tickRate);
             _tickRateHistory.Add(tickRate);
 
             // Tick acceleration
             if (_tickRateHistory.Count >= 2)
             {
                 var tickAcceleration = _tickRateHistory[0] - _tickRateHistory[1];
-                output.AddFeature("adv_liquidity_tick_acceleration", tickAcceleration);
+                output.AddFeature("fg2_liquidity_tick_acceleration", tickAcceleration);
             }
             else
             {
-                output.AddFeature("adv_liquidity_tick_acceleration", 0.0);
+                output.AddFeature("fg2_liquidity_tick_acceleration", 0.0);
             }
 
             // Tick volatility
@@ -47,11 +47,11 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var tickVol = Math.Sqrt(_tickRateHistory.GetValues().Take(20)
                     .Select(t => Math.Pow(t - _tickRateHistory.GetValues().Take(20).Average(), 2))
                     .Average());
-                output.AddFeature("adv_liquidity_tick_volatility", tickVol);
+                output.AddFeature("fg2_liquidity_tick_volatility", tickVol);
             }
             else
             {
-                output.AddFeature("adv_liquidity_tick_volatility", 0.0);
+                output.AddFeature("fg2_liquidity_tick_volatility", 0.0);
             }
 
             // Tick clustering (concentration of ticks)
@@ -66,7 +66,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                         recentTicks += bars[i].TickVolume;
                 }
                 var clustering = totalTicks > 0 ? (double)recentTicks / totalTicks : 0;
-                output.AddFeature("adv_liquidity_tick_clustering", clustering);
+                output.AddFeature("fg2_liquidity_tick_clustering", clustering);
             }
 
             // ===== VOLUME PROFILE =====
@@ -83,16 +83,16 @@ namespace ForexFeatureGenerator.Features.Advanced
                 }
 
                 var volumeProfile = volumes.Max() - volumes.Min();
-                output.AddFeature("adv_liquidity_volume_profile", SafeDiv(volumeProfile, volumes.Average()));
+                output.AddFeature("fg2_liquidity_volume_profile", SafeDiv(volumeProfile, volumes.Average()));
 
                 // Volume concentration (Herfindahl index)
                 var totalVolume = volumes.Sum();
                 var concentration = totalVolume > 0 ? volumes.Sum(v => Math.Pow(v / totalVolume, 2)) : 0;
-                output.AddFeature("adv_liquidity_volume_concentration", concentration);
+                output.AddFeature("fg2_liquidity_volume_concentration", concentration);
 
                 // Volume dispersion
                 var volumeDispersion = Math.Sqrt(volumes.Select(v => Math.Pow(v - volumes.Average(), 2)).Average());
-                output.AddFeature("adv_liquidity_volume_dispersion", volumeDispersion);
+                output.AddFeature("fg2_liquidity_volume_dispersion", volumeDispersion);
             }
 
             // Relative volume
@@ -100,11 +100,11 @@ namespace ForexFeatureGenerator.Features.Advanced
             {
                 var avgVolume = _volumeHistory.GetValues().Take(50).Average();
                 var relativeVolume = SafeDiv(bar.TickVolume, avgVolume);
-                output.AddFeature("adv_liquidity_relative_volume", relativeVolume);
+                output.AddFeature("fg2_liquidity_relative_volume", relativeVolume);
             }
             else
             {
-                output.AddFeature("adv_liquidity_relative_volume", 1.0);
+                output.AddFeature("fg2_liquidity_relative_volume", 1.0);
             }
 
             // ===== PRICE DISPERSION & EFFICIENCY =====
@@ -118,7 +118,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                     prices.Add((double)bars[i].Close);
                 }
                 var priceDisp = prices.Max() - prices.Min();
-                output.AddFeature("adv_liquidity_price_dispersion", SafeDiv(priceDisp, prices.Average()) * 10000);
+                output.AddFeature("fg2_liquidity_price_dispersion", SafeDiv(priceDisp, prices.Average()) * 10000);
             }
 
             // Price efficiency (how directly price moves)
@@ -131,27 +131,27 @@ namespace ForexFeatureGenerator.Features.Advanced
                     totalMove += Math.Abs((double)(bars[i].Close - bars[i - 1].Close));
                 }
                 var efficiency = SafeDiv(netMove, totalMove);
-                output.AddFeature("adv_liquidity_price_efficiency", efficiency);
+                output.AddFeature("fg2_liquidity_price_efficiency", efficiency);
             }
 
             // Effective tick (price move per tick)
             var effectiveTick = bar.TickVolume > 0 ?
                 (double)(bar.High - bar.Low) / bar.TickVolume * 10000 : 0;
-            output.AddFeature("adv_liquidity_effective_tick", effectiveTick);
+            output.AddFeature("fg2_liquidity_effective_tick", effectiveTick);
 
             // Price impact (simplified Kyle's lambda)
             if (currentIndex >= 1)
             {
                 var priceChange = Math.Abs((double)(bar.Close - bars[currentIndex - 1].Close));
                 var priceImpact = SafeDiv(priceChange * 10000, bar.TickVolume);
-                output.AddFeature("adv_liquidity_price_impact", priceImpact);
+                output.AddFeature("fg2_liquidity_price_impact", priceImpact);
             }
 
             // ===== MARKET DEPTH PROXIES =====
 
             // Depth proxy (based on spread and volume)
             var depthProxy = bar.TickVolume / Math.Max(0.0001, (double)bar.AvgSpread * 10000);
-            output.AddFeature("adv_liquidity_depth_proxy", Math.Log(1 + depthProxy));
+            output.AddFeature("fg2_liquidity_depth_proxy", Math.Log(1 + depthProxy));
 
             // Resilience (how quickly price recovers)
             if (currentIndex >= 5)
@@ -171,12 +171,12 @@ namespace ForexFeatureGenerator.Features.Advanced
                         break;
                     }
                 }
-                output.AddFeature("adv_liquidity_resilience", recovered);
+                output.AddFeature("fg2_liquidity_resilience", recovered);
             }
 
             // Tightness (relative spread)
             var tightness = SafeDiv((double)bar.AvgSpread, close) * 10000;
-            output.AddFeature("adv_liquidity_tightness", tightness);
+            output.AddFeature("fg2_liquidity_tightness", tightness);
 
             // ===== ADVANCED LIQUIDITY MEASURES =====
 
@@ -199,7 +199,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 }
 
                 var amihud = validDays > 0 ? amihudSum / validDays : 0;
-                output.AddFeature("adv_liquidity_amihud_illiquidity", amihud);
+                output.AddFeature("fg2_liquidity_amihud_illiquidity", amihud);
             }
 
             // Roll Measure (effective spread estimator)
@@ -208,7 +208,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var priceChange = (double)(bar.Close - bars[currentIndex - 1].Close);
                 var prevPriceChange = (double)(bars[currentIndex - 1].Close - bars[currentIndex - 2].Close);
                 var rollMeasure = 2 * Math.Sqrt(Math.Max(0, -priceChange * prevPriceChange));
-                output.AddFeature("adv_liquidity_roll_measure", rollMeasure * 10000);
+                output.AddFeature("fg2_liquidity_roll_measure", rollMeasure * 10000);
             }
 
             // Kyle's Lambda (simplified price impact)
@@ -225,14 +225,14 @@ namespace ForexFeatureGenerator.Features.Advanced
 
                 // Simple regression of price change on net volume
                 var lambda = CalculateKyleLambda(priceChanges, volumes);
-                output.AddFeature("adv_liquidity_kyle_lambda", lambda * 10000);
+                output.AddFeature("fg2_liquidity_kyle_lambda", lambda * 10000);
             }
 
             // Hasbrouck Measure (information share)
             if (currentIndex >= 30)
             {
                 var hasbrouck = CalculateHasbrouckMeasure(bars, currentIndex);
-                output.AddFeature("adv_liquidity_hasbrouck_measure", hasbrouck);
+                output.AddFeature("fg2_liquidity_hasbrouck_measure", hasbrouck);
             }
         }
 

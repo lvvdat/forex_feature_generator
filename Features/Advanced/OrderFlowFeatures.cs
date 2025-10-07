@@ -11,7 +11,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "OrderFlow";
         public override string Category => "Microstructure";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
-        public override int Priority => 5;
+        public override int Priority => 10;
 
         // Order flow tracking
         private readonly RollingWindow<OrderFlowSnapshot> _flowHistory = new(100);
@@ -47,7 +47,7 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // Net order flow
             var netFlow = buyVolume - sellVolume;
-            output.AddFeature("adv_of_net_flow", (double)netFlow);
+            output.AddFeature("fg2_of_net_flow", (double)netFlow);
 
             // Cumulative delta (last 20 bars)
             double cumulativeDelta = 0;
@@ -57,18 +57,18 @@ namespace ForexFeatureGenerator.Features.Advanced
                 {
                     cumulativeDelta += (double)(bars[i].UpVolume - bars[i].DownVolume);
                 }
-                output.AddFeature("adv_of_cumulative_delta", cumulativeDelta);
+                output.AddFeature("fg2_of_cumulative_delta", cumulativeDelta);
             }
 
             // Buy/Sell ratio
-            output.AddFeature("adv_of_buy_sell_ratio", SafeDiv((double)buyVolume, (double)sellVolume, 1.0));
+            output.AddFeature("fg2_of_buy_sell_ratio", SafeDiv((double)buyVolume, (double)sellVolume, 1.0));
 
             // Pressure ratio (aggressive buying vs selling)
             var pressureRatio = SafeDiv((double)buyVolume, (double)totalVolume);
-            output.AddFeature("adv_of_pressure_ratio", pressureRatio);
+            output.AddFeature("fg2_of_pressure_ratio", pressureRatio);
 
             // Trade intensity (trades per minute normalized)
-            output.AddFeature("adv_of_trade_intensity", (double)bar.TickVolume / 60.0);
+            output.AddFeature("fg2_of_trade_intensity", (double)bar.TickVolume / 60.0);
 
             // Large order detection (using volume spikes)
             if (currentIndex >= 20)
@@ -81,7 +81,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 avgVolume /= 19;
 
                 var largeOrderRatio = SafeDiv(bar.TickVolume, avgVolume, 1.0);
-                output.AddFeature("adv_of_large_order_ratio", largeOrderRatio);
+                output.AddFeature("fg2_of_large_order_ratio", largeOrderRatio);
             }
 
             // Aggressive ratio (market orders vs limit orders proxy)
@@ -89,7 +89,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 Math.Abs((double)netFlow),
                 (double)totalVolume
             );
-            output.AddFeature("adv_of_aggressive_ratio", aggressiveRatio);
+            output.AddFeature("fg2_of_aggressive_ratio", aggressiveRatio);
 
             // VWAP calculation and deviation
             if (currentIndex >= 20)
@@ -107,7 +107,7 @@ namespace ForexFeatureGenerator.Features.Advanced
 
                 var vwap = SafeDiv(vwapNum, vwapDen);
                 var vwapDev = SafeDiv((double)bar.Close - vwap, vwap) * 10000;
-                output.AddFeature("adv_of_vwap_deviation", vwapDev);
+                output.AddFeature("fg2_of_vwap_deviation", vwapDev);
 
                 // VWAP slope (momentum)
                 if (currentIndex >= 25)
@@ -125,7 +125,7 @@ namespace ForexFeatureGenerator.Features.Advanced
 
                     var vwap2 = SafeDiv(vwapNum2, vwapDen2);
                     var vwapSlope = SafeDiv(vwap - vwap2, vwap2) * 10000;
-                    output.AddFeature("adv_of_vwap_slope", vwapSlope);
+                    output.AddFeature("fg2_of_vwap_slope", vwapSlope);
                 }
             }
 
@@ -157,7 +157,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             var bar = bars[currentIndex];
 
             // Effective spread (using average spread as proxy)
-            output.AddFeature("adv_of_effective_spread", (double)bar.AvgSpread * 10000);
+            output.AddFeature("fg2_of_effective_spread", (double)bar.AvgSpread * 10000);
 
             // Realized spread (price movement after trade)
             if (currentIndex >= 5)
@@ -165,7 +165,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var futurePrice = (double)bars[currentIndex - 5].Close;
                 var currentMid = (double)((bar.High + bar.Low) / 2);
                 var realizedSpread = Math.Abs(futurePrice - currentMid);
-                output.AddFeature("adv_of_realized_spread", realizedSpread * 10000);
+                output.AddFeature("fg2_of_realized_spread", realizedSpread * 10000);
             }
 
             // Price impact (volume-weighted price change)
@@ -174,7 +174,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var priceChange = Math.Abs((double)(bar.Close - bars[currentIndex - 1].Close));
                 var avgVolume = (bar.TickVolume + bars[currentIndex - 1].TickVolume) / 2.0;
                 var priceImpact = SafeDiv(priceChange * bar.TickVolume, avgVolume);
-                output.AddFeature("adv_of_price_impact", priceImpact * 10000);
+                output.AddFeature("fg2_of_price_impact", priceImpact * 10000);
             }
 
             // Quote imbalance
@@ -184,7 +184,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 (double)(bidPressure - askPressure),
                 (double)(bidPressure + askPressure)
             );
-            output.AddFeature("adv_of_quote_imbalance", quoteImbalance);
+            output.AddFeature("fg2_of_quote_imbalance", quoteImbalance);
         }
 
         private void CalculateOrderBookDynamics(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -208,34 +208,34 @@ namespace ForexFeatureGenerator.Features.Advanced
                     recentBuyVolume - recentSellVolume,
                     recentBuyVolume + recentSellVolume
                 );
-                output.AddFeature("adv_of_bid_depth_change", bidDepthChange);
+                output.AddFeature("fg2_of_bid_depth_change", bidDepthChange);
 
                 var askDepthChange = SafeDiv(
                     recentSellVolume - recentBuyVolume,
                     recentBuyVolume + recentSellVolume
                 );
-                output.AddFeature("adv_of_ask_depth_change", askDepthChange);
+                output.AddFeature("fg2_of_ask_depth_change", askDepthChange);
 
                 // Book imbalance
                 var bookImbalance = SafeDiv(
                     recentBuyVolume - recentSellVolume,
                     recentBuyVolume + recentSellVolume
                 );
-                output.AddFeature("adv_of_book_imbalance", bookImbalance);
+                output.AddFeature("fg2_of_book_imbalance", bookImbalance);
             }
 
             // Micro price (volume-weighted mid price)
             var microPrice = (double)bar.Close + (double)bar.AvgSpread * SafeDiv((double)bar.UpVolume, (double)(bar.UpVolume + bar.DownVolume));
-            output.AddFeature("adv_of_micro_price", microPrice);
+            output.AddFeature("fg2_of_micro_price", microPrice);
         }
 
         private void CalculateFlowPersistence(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             if (_flowHistory.Count < 10)
             {
-                output.AddFeature("adv_of_flow_autocorr", 0.0);
-                output.AddFeature("adv_of_flow_momentum", 0.0);
-                output.AddFeature("adv_of_flow_acceleration", 0.0);
+                output.AddFeature("fg2_of_flow_autocorr", 0.0);
+                output.AddFeature("fg2_of_flow_momentum", 0.0);
+                output.AddFeature("fg2_of_flow_acceleration", 0.0);
 
                 return;
             }
@@ -253,18 +253,18 @@ namespace ForexFeatureGenerator.Features.Advanced
                 variance += Math.Pow(flows[i] - mean, 2);
             }
 
-            output.AddFeature("adv_of_flow_autocorr", SafeDiv(autocorr, variance));
+            output.AddFeature("fg2_of_flow_autocorr", SafeDiv(autocorr, variance));
 
             // Flow momentum (recent vs older)
             if (_flowHistory.Count >= 20)
             {
                 var recentFlow = _flowHistory.GetValues().Take(5).Average(f => (double)f.NetOrderFlow);
                 var olderFlow = _flowHistory.GetValues().Skip(5).Take(5).Average(f => (double)f.NetOrderFlow);
-                output.AddFeature("adv_of_flow_momentum", recentFlow - olderFlow);
+                output.AddFeature("fg2_of_flow_momentum", recentFlow - olderFlow);
             }
             else
             {
-                output.AddFeature("adv_of_flow_momentum", 0.0);
+                output.AddFeature("fg2_of_flow_momentum", 0.0);
             }
 
             // Flow acceleration
@@ -275,11 +275,11 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var flow3 = (double)_flowHistory[2].NetOrderFlow;
 
                 var accel = (flow1 - flow2) - (flow2 - flow3);
-                output.AddFeature("adv_of_flow_acceleration", accel);
+                output.AddFeature("fg2_of_flow_acceleration", accel);
             }
             else
             {
-                output.AddFeature("adv_of_flow_acceleration", 0.0);
+                output.AddFeature("fg2_of_flow_acceleration", 0.0);
             }
         }
 

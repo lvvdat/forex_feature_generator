@@ -9,7 +9,7 @@ namespace ForexFeatureGenerator.Features.M5
         public override string Name => "M5_Volume";
         public override string Category => "Volume";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 25;
+        public override int Priority => 24;
 
         private readonly RollingWindow<double> _volumeValues = new(50);
         private readonly RollingWindow<double> _obv = new(50);
@@ -22,7 +22,7 @@ namespace ForexFeatureGenerator.Features.M5
             var volume = (double)bar.TickVolume;
 
             // ===== BASIC VOLUME =====
-            output.AddFeature("m5_volume", volume);
+            output.AddFeature("fg3_volume", volume);
             _volumeValues.Add(volume);
 
             if (currentIndex >= 20)
@@ -34,8 +34,8 @@ namespace ForexFeatureGenerator.Features.M5
                 }
                 volumeMA /= 20;
 
-                output.AddFeature("m5_volume_ma", volumeMA);
-                output.AddFeature("m5_volume_ratio", SafeDiv(volume, volumeMA));
+                output.AddFeature("fg3_volume_ma", volumeMA);
+                output.AddFeature("fg3_volume_ratio", SafeDiv(volume, volumeMA));
             }
 
             // Volume Trend
@@ -44,11 +44,11 @@ namespace ForexFeatureGenerator.Features.M5
                 var recent = _volumeValues.GetValues().Take(5).Average();
                 var older = _volumeValues.GetValues().Skip(5).Take(5).Average();
                 var trend = SafeDiv(recent - older, older);
-                output.AddFeature("m5_volume_trend", trend);
+                output.AddFeature("fg3_volume_trend", trend);
             }
             else
             {
-                output.AddFeature("m5_volume_trend", 0.0);
+                output.AddFeature("fg3_volume_trend", 0.0);
             }
 
             // ===== ON-BALANCE VOLUME (OBV) =====
@@ -63,13 +63,13 @@ namespace ForexFeatureGenerator.Features.M5
                     currentOBV -= volume;
 
                 _obv.Add(currentOBV);
-                output.AddFeature("m5_obv", currentOBV / 1000);
+                output.AddFeature("fg3_obv", currentOBV / 1000);
 
                 // OBV MA
                 if (_obv.Count >= 10)
                 {
                     var obvMA = _obv.GetValues().Take(10).Average();
-                    output.AddFeature("m5_obv_ma", obvMA / 1000);
+                    output.AddFeature("fg3_obv_ma", obvMA / 1000);
 
                     // OBV Divergence
                     if (currentIndex >= 10)
@@ -78,24 +78,24 @@ namespace ForexFeatureGenerator.Features.M5
                         var obvTrend = currentOBV - _obv[9];
                         var divergence = (priceTrend > 0 && obvTrend < 0) ? -1.0 :
                                        (priceTrend < 0 && obvTrend > 0) ? 1.0 : 0.0;
-                        output.AddFeature("m5_obv_divergence", divergence);
+                        output.AddFeature("fg3_obv_divergence", divergence);
                     }
                     else
                     {
-                        output.AddFeature("m5_obv_divergence", 0.0);
+                        output.AddFeature("fg3_obv_divergence", 0.0);
                     }
                 }
                 else
                 {
-                    output.AddFeature("m5_obv_ma", 0.0);
-                    output.AddFeature("m5_obv_divergence", 0.0);
+                    output.AddFeature("fg3_obv_ma", 0.0);
+                    output.AddFeature("fg3_obv_divergence", 0.0);
                 }
             }
             else
             {
-                output.AddFeature("m5_obv", 0.0);
-                output.AddFeature("m5_obv_ma", 0.0);
-                output.AddFeature("m5_obv_divergence", 0.0);
+                output.AddFeature("fg3_obv", 0.0);
+                output.AddFeature("fg3_obv_ma", 0.0);
+                output.AddFeature("fg3_obv_divergence", 0.0);
             }
 
             // ===== VOLUME PRICE TREND (VPT) =====
@@ -105,7 +105,7 @@ namespace ForexFeatureGenerator.Features.M5
                     (double)(bar.Close - bars[currentIndex - 1].Close),
                     (double)bars[currentIndex - 1].Close);
                 var vpt = volume * priceChange;
-                output.AddFeature("m5_vpt", vpt);
+                output.AddFeature("fg3_vpt", vpt);
             }
 
             // ===== POSITIVE/NEGATIVE VOLUME INDEX =====
@@ -119,11 +119,11 @@ namespace ForexFeatureGenerator.Features.M5
                     var priceChange = SafeDiv(
                         (double)(bar.Close - bars[currentIndex - 1].Close),
                         (double)bars[currentIndex - 1].Close);
-                    output.AddFeature("m5_pvi", priceChange * 100);
+                    output.AddFeature("fg3_pvi", priceChange * 100);
                 }
                 else
                 {
-                    output.AddFeature("m5_pvi", 0);
+                    output.AddFeature("fg3_pvi", 0);
                 }
 
                 // NVI - changes when volume decreases
@@ -132,11 +132,11 @@ namespace ForexFeatureGenerator.Features.M5
                     var priceChange = SafeDiv(
                         (double)(bar.Close - bars[currentIndex - 1].Close),
                         (double)bars[currentIndex - 1].Close);
-                    output.AddFeature("m5_nvi", priceChange * 100);
+                    output.AddFeature("fg3_nvi", priceChange * 100);
                 }
                 else
                 {
-                    output.AddFeature("m5_nvi", 0);
+                    output.AddFeature("fg3_nvi", 0);
                 }
             }
 
@@ -144,28 +144,28 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 14)
             {
                 var mfi = CalculateMFI(bars, 14, currentIndex);
-                output.AddFeature("m5_mfi", mfi);
+                output.AddFeature("fg3_mfi", mfi);
             }
 
             // ===== CHAIKIN MONEY FLOW (CMF) =====
             if (currentIndex >= 20)
             {
                 var cmf = CalculateCMF(bars, 20, currentIndex);
-                output.AddFeature("m5_cmf", cmf);
+                output.AddFeature("fg3_cmf", cmf);
             }
 
             // ===== EASE OF MOVEMENT (EMV) =====
             if (currentIndex >= 14)
             {
                 var emv = CalculateEMV(bars, 14, currentIndex);
-                output.AddFeature("m5_emv", emv);
+                output.AddFeature("fg3_emv", emv);
             }
 
             // ===== VOLUME FORCE =====
             if (currentIndex >= 1)
             {
                 var forceIndex = volume * (double)(bar.Close - bars[currentIndex - 1].Close) * 10000;
-                output.AddFeature("m5_volume_force", forceIndex);
+                output.AddFeature("fg3_volume_force", forceIndex);
             }
 
             // ===== ACCUMULATION/DISTRIBUTION =====
@@ -175,7 +175,7 @@ namespace ForexFeatureGenerator.Features.M5
                     (double)((bar.Close - bar.Low) - (bar.High - bar.Close)),
                     (double)(bar.High - bar.Low));
                 var moneyFlowVolume = moneyFlowMultiplier * volume;
-                output.AddFeature("m5_accumulation_distribution", moneyFlowVolume / 1000);
+                output.AddFeature("fg3_accumulation_distribution", moneyFlowVolume / 1000);
             }
 
             // ===== VOLUME OSCILLATOR =====
@@ -193,7 +193,7 @@ namespace ForexFeatureGenerator.Features.M5
                 longMA /= 20;
 
                 var oscillator = SafeDiv(shortMA - longMA, longMA) * 100;
-                output.AddFeature("m5_volume_oscillator", oscillator);
+                output.AddFeature("fg3_volume_oscillator", oscillator);
             }
 
             // ===== VOLUME-PRICE TREND =====
@@ -205,11 +205,11 @@ namespace ForexFeatureGenerator.Features.M5
                     (double)bars[currentIndex - 10].Close);
 
                 var correlation = volumeTrend * priceTrend > 0 ? 1.0 : -1.0;
-                output.AddFeature("m5_volume_price_trend", correlation);
+                output.AddFeature("fg3_volume_price_trend", correlation);
             }
             else
             {
-                output.AddFeature("m5_volume_price_trend", 0.0);
+                output.AddFeature("fg3_volume_price_trend", 0.0);
             }
         }
 

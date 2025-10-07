@@ -174,6 +174,7 @@ namespace ForexFeatureGenerator
 
                 // Cached fields (avoid schema lookups later)
                 List<DataField<double>>? featureFields = null;
+
                 DataField<int>? labelField = null;
                 DataField<double>? confidenceField = null;
                 DataField<double>? longPipsField = null;
@@ -181,6 +182,7 @@ namespace ForexFeatureGenerator
 
                 const int BatchSize = 100_000;
                 Dictionary<string, List<double>>? featureBuffers = null;
+                
                 List<int>? labelBuffer = null;
                 List<double>? confidenceBuffer = null;
                 List<double>? longPipsBuffer = null;
@@ -204,11 +206,16 @@ namespace ForexFeatureGenerator
                         await rowGroup.WriteColumnAsync(new DataColumn(labelField!, labelBuffer.ToArray()));
                         await rowGroup.WriteColumnAsync(new DataColumn(confidenceField!, confidenceBuffer!.ToArray()));
                         await rowGroup.WriteColumnAsync(new DataColumn(longPipsField!, longPipsBuffer!.ToArray()));
-                        await rowGroup.WriteColumnAsync(new DataColumn(shortPipsField!, shortPipsBuffer!.ToArray()));
+                        await rowGroup.WriteColumnAsync(new DataColumn(shortPipsField!, shortPipsBuffer!.ToArray()));                        
                     }
 
-                    foreach (var kv in featureBuffers!) kv.Value.Clear();
-                    labelBuffer!.Clear(); confidenceBuffer!.Clear(); longPipsBuffer!.Clear(); shortPipsBuffer!.Clear();
+                    foreach (var kv in featureBuffers!)
+                        kv.Value.Clear();
+
+                    labelBuffer!.Clear();
+                    confidenceBuffer!.Clear();
+                    longPipsBuffer!.Clear();
+                    shortPipsBuffer!.Clear();
                 }
 
                 if (File.Exists(outputPath)) File.Delete(outputPath);
@@ -242,7 +249,7 @@ namespace ForexFeatureGenerator
                                     {
                                         featureNames = features.Features.Keys.ToList();
 
-                                        var fields = new List<Field>(featureNames.Count + 4);
+                                        var fields = new List<Field>(featureNames.Count + 5);
 
                                         featureFields = new List<DataField<double>>(featureNames.Count);
                                         foreach (var fname in featureNames)
@@ -256,6 +263,7 @@ namespace ForexFeatureGenerator
                                         confidenceField = new DataField<double>("confidence");
                                         longPipsField = new DataField<double>("long_profit_pips");
                                         shortPipsField = new DataField<double>("short_profit_pips");
+
 
                                         fields.Add(labelField);
                                         fields.Add(confidenceField);
@@ -348,8 +356,8 @@ namespace ForexFeatureGenerator
         static void RegisterAllFeatureCalculators(FeaturePipeline pipeline)
         {
             // M1 Features
-            pipeline.RegisterCalculator(new M1ComprehensiveFeatures());
             pipeline.RegisterCalculator(new M1MicrostructureFeatures());
+            pipeline.RegisterCalculator(new M1ComprehensiveFeatures());
             pipeline.RegisterCalculator(new M1MomentumFeatures());
             pipeline.RegisterCalculator(new M1VolatilityFeatures());
 

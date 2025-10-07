@@ -8,6 +8,7 @@ namespace ForexFeatureGenerator.Features.M5
         public override string Name => "M5_Oscillators";
         public override string Category => "Momentum";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
+        public override int Priority => 21;
 
         public override void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
@@ -15,13 +16,13 @@ namespace ForexFeatureGenerator.Features.M5
 
             // RSI(9)
             var rsi9 = CalculateRSI(bars, 9, currentIndex);
-            output.AddFeature("m5_rsi_9", rsi9);
+            output.AddFeature("fg3_rsi_9", rsi9);
 
             // RSI(14)
             if (currentIndex >= 20)
             {
                 var rsi14 = CalculateRSI(bars, 14, currentIndex);
-                output.AddFeature("m5_rsi_14", rsi14);
+                output.AddFeature("fg3_rsi_14", rsi14);
             }
 
             // Bollinger Bands
@@ -31,11 +32,11 @@ namespace ForexFeatureGenerator.Features.M5
             var bbLower = sma20 - 2 * std20;
 
             var bbWidth = SafeDiv(bbUpper - bbLower, sma20);
-            output.AddFeature("m5_bb_width", bbWidth);
+            output.AddFeature("fg3_bb_width", bbWidth);
 
             var close = (double)bars[currentIndex].Close;
             var bbPosition = SafeDiv(close - bbLower, bbUpper - bbLower);
-            output.AddFeature("m5_bb_position", bbPosition);
+            output.AddFeature("fg3_bb_position", bbPosition);
         }
 
         private double CalculateRSI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)

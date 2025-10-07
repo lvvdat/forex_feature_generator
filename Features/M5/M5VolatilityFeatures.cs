@@ -9,7 +9,7 @@ namespace ForexFeatureGenerator.Features.M5
         public override string Name => "M5_Volatility";
         public override string Category => "Volatility";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 25;
+        public override int Priority => 23;
 
         private readonly RollingWindow<double> _volatilityValues = new(50);
 
@@ -24,8 +24,8 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 14)
             {
                 var atr14 = ATR(bars, 14, currentIndex);
-                output.AddFeature("m5_atr_14", atr14 * 10000);
-                output.AddFeature("m5_normalized_atr", SafeDiv(atr14, close) * 10000);
+                output.AddFeature("fg3_atr_14", atr14 * 10000);
+                output.AddFeature("fg3_normalized_atr", SafeDiv(atr14, close) * 10000);
 
                 _volatilityValues.Add(atr14);
 
@@ -34,19 +34,19 @@ namespace ForexFeatureGenerator.Features.M5
                 {
                     var atr14_prev = ATR(bars, 14, currentIndex - 14);
                     var expansion = SafeDiv(atr14 - atr14_prev, atr14_prev);
-                    output.AddFeature("m5_atr_expansion", expansion);
+                    output.AddFeature("fg3_atr_expansion", expansion);
                 }
             }
 
             if (currentIndex >= 21)
             {
                 var atr21 = ATR(bars, 21, currentIndex);
-                output.AddFeature("m5_atr_21", atr21 * 10000);
+                output.AddFeature("fg3_atr_21", atr21 * 10000);
 
                 if (currentIndex >= 14)
                 {
                     var atr14 = ATR(bars, 14, currentIndex);
-                    output.AddFeature("m5_atr_ratio", SafeDiv(atr14, atr21));
+                    output.AddFeature("fg3_atr_ratio", SafeDiv(atr14, atr21));
                 }
             }
 
@@ -60,10 +60,10 @@ namespace ForexFeatureGenerator.Features.M5
                 var bbLower = sma20 - 2 * stdDev;
                 var bbWidth = bbUpper - bbLower;
 
-                output.AddFeature("m5_bb_upper", bbUpper);
-                output.AddFeature("m5_bb_lower", bbLower);
-                output.AddFeature("m5_bb_width", SafeDiv(bbWidth, sma20) * 10000);
-                output.AddFeature("m5_bb_percent_b", SafeDiv(close - bbLower, bbWidth));
+                output.AddFeature("fg3_bb_upper", bbUpper);
+                output.AddFeature("fg3_bb_lower", bbLower);
+                output.AddFeature("fg3_bb_width", SafeDiv(bbWidth, sma20) * 10000);
+                output.AddFeature("fg3_bb_percent_b", SafeDiv(close - bbLower, bbWidth));
 
                 // Bollinger Band Squeeze
                 if (currentIndex >= 40)
@@ -79,7 +79,7 @@ namespace ForexFeatureGenerator.Features.M5
 
                     var currentWidth = SafeDiv(bbWidth, sma20);
                     var squeeze = currentWidth < avgWidth * 0.8 ? 1.0 : 0.0;
-                    output.AddFeature("m5_bb_squeeze", squeeze);
+                    output.AddFeature("fg3_bb_squeeze", squeeze);
                 }
             }
 
@@ -87,24 +87,24 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 10)
             {
                 var histVol10 = CalculateHistoricalVolatility(bars, 10, currentIndex);
-                output.AddFeature("m5_hist_vol_10", histVol10);
+                output.AddFeature("fg3_hist_vol_10", histVol10);
             }
 
             if (currentIndex >= 20)
             {
                 var histVol20 = CalculateHistoricalVolatility(bars, 20, currentIndex);
-                output.AddFeature("m5_hist_vol_20", histVol20);
+                output.AddFeature("fg3_hist_vol_20", histVol20);
 
                 if (currentIndex >= 10)
                 {
                     var histVol10 = CalculateHistoricalVolatility(bars, 10, currentIndex);
-                    output.AddFeature("m5_vol_ratio", SafeDiv(histVol10, histVol20));
+                    output.AddFeature("fg3_vol_ratio", SafeDiv(histVol10, histVol20));
                 }
             }
 
             // ===== RANGE-BASED =====
             var trueRange = TrueRange(bars, currentIndex);
-            output.AddFeature("m5_true_range", trueRange * 10000);
+            output.AddFeature("fg3_true_range", trueRange * 10000);
 
             if (currentIndex >= 10)
             {
@@ -118,15 +118,15 @@ namespace ForexFeatureGenerator.Features.M5
                 var expansion = trueRange > avgRange * 1.5 ? 1.0 : 0.0;
                 var contraction = trueRange < avgRange * 0.5 ? 1.0 : 0.0;
 
-                output.AddFeature("m5_range_expansion", expansion);
-                output.AddFeature("m5_range_contraction", contraction);
+                output.AddFeature("fg3_range_expansion", expansion);
+                output.AddFeature("fg3_range_contraction", contraction);
             }
 
             // ===== CHAIKIN VOLATILITY =====
             if (currentIndex >= 20)
             {
                 var chaikinVol = CalculateChaikinVolatility(bars, 10, currentIndex);
-                output.AddFeature("m5_chaikin_volatility", chaikinVol);
+                output.AddFeature("fg3_chaikin_volatility", chaikinVol);
             }
 
             // ===== VOLATILITY TREND =====
@@ -140,16 +140,16 @@ namespace ForexFeatureGenerator.Features.M5
                     var recentAvg = recent.Average();
                     var olderAvg = older.Average();
                     var trend = SafeDiv(recentAvg - olderAvg, olderAvg);
-                    output.AddFeature("m5_volatility_trend", trend);
+                    output.AddFeature("fg3_volatility_trend", trend);
                 }
                 else
                 {
-                    output.AddFeature("m5_volatility_trend", 0.0);
+                    output.AddFeature("fg3_volatility_trend", 0.0);
                 }
             }
             else
             {
-                output.AddFeature("m5_volatility_trend", 0.0);
+                output.AddFeature("fg3_volatility_trend", 0.0);
             }
         }
 

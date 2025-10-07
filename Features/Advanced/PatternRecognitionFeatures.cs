@@ -9,7 +9,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "PatternRecognition";
         public override string Category => "Patterns";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
-        public override int Priority => 15;
+        public override int Priority => 12;
 
         private readonly RollingWindow<int> _patternHistory = new(50);
         private readonly RollingWindow<double> _swingHighs = new(20);
@@ -29,12 +29,12 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Bullish Engulfing
             var bullishEngulfing = prev1.Close < prev1.Open && curr.Close > curr.Open &&
                                   curr.Open <= prev1.Close && curr.Close >= prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_bullish_engulfing", bullishEngulfing);
+            output.AddFeature("fg2_pattern_bullish_engulfing", bullishEngulfing);
 
             // Bearish Engulfing  
             var bearishEngulfing = prev1.Close > prev1.Open && curr.Close < curr.Open &&
                                   curr.Open >= prev1.Close && curr.Close <= prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_bearish_engulfing", bearishEngulfing);
+            output.AddFeature("fg2_pattern_bearish_engulfing", bearishEngulfing);
 
             // Calculate body and shadow ratios
             var range = curr.High - curr.Low;
@@ -45,16 +45,16 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Hammer
             var hammer = range > 0 && body / range < 0.3m && lowerShadow / range > 0.6m &&
                         curr.Close > prev1.Close ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_hammer", hammer);
+            output.AddFeature("fg2_pattern_hammer", hammer);
 
             // Shooting Star
             var shootingStar = range > 0 && body / range < 0.3m && upperShadow / range > 0.6m &&
                               curr.Close < prev1.Close ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_shooting_star", shootingStar);
+            output.AddFeature("fg2_pattern_shooting_star", shootingStar);
 
             // Doji (small body)
             var doji = range > 0 && body / range < 0.1m ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_doji", doji);
+            output.AddFeature("fg2_pattern_doji", doji);
 
             // Three White Soldiers
             var threeWhiteSoldiers = 0.0;
@@ -66,7 +66,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                                     curr.Close > prev1.Close &&
                                     prev1.Close > prev2.Close ? 1.0 : 0.0;
             }
-            output.AddFeature("adv_pattern_three_white_soldiers", threeWhiteSoldiers);
+            output.AddFeature("fg2_pattern_three_white_soldiers", threeWhiteSoldiers);
 
             // Three Black Crows
             var threeBlackCrows = 0.0;
@@ -78,7 +78,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                                  curr.Close < prev1.Close &&
                                  prev1.Close < prev2.Close ? 1.0 : 0.0;
             }
-            output.AddFeature("adv_pattern_three_black_crows", threeBlackCrows);
+            output.AddFeature("fg2_pattern_three_black_crows", threeBlackCrows);
 
             // Morning Star
             var morningStar = 0.0;
@@ -89,7 +89,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var thirdCandleBullish = curr.Close > curr.Open && curr.Close > (prev2.Open + prev2.Close) / 2;
                 morningStar = firstCandleBearish && middleCandleSmall && thirdCandleBullish ? 1.0 : 0.0;
             }
-            output.AddFeature("adv_pattern_morning_star", morningStar);
+            output.AddFeature("fg2_pattern_morning_star", morningStar);
 
             // Evening Star
             var eveningStar = 0.0;
@@ -100,36 +100,36 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var thirdCandleBearish = curr.Close < curr.Open && curr.Close < (prev2.Open + prev2.Close) / 2;
                 eveningStar = firstCandleBullish && middleCandleSmall && thirdCandleBearish ? 1.0 : 0.0;
             }
-            output.AddFeature("adv_pattern_evening_star", eveningStar);
+            output.AddFeature("fg2_pattern_evening_star", eveningStar);
 
             // Bullish Harami
             var bullishHarami = prev1.Close < prev1.Open && curr.Close > curr.Open &&
                                curr.Open > prev1.Close && curr.Close < prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_bullish_harami", bullishHarami);
+            output.AddFeature("fg2_pattern_bullish_harami", bullishHarami);
 
             // Bearish Harami
             var bearishHarami = prev1.Close > prev1.Open && curr.Close < curr.Open &&
                                curr.Open < prev1.Close && curr.Close > prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_bearish_harami", bearishHarami);
+            output.AddFeature("fg2_pattern_bearish_harami", bearishHarami);
 
             // Tweezer Top
             var tweezerTop = Math.Abs(curr.High - prev1.High) < range * 0.1m &&
                             curr.Close < curr.Open && prev1.Close > prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_tweezer_top", tweezerTop);
+            output.AddFeature("fg2_pattern_tweezer_top", tweezerTop);
 
             // Tweezer Bottom
             var tweezerBottom = Math.Abs(curr.Low - prev1.Low) < range * 0.1m &&
                                curr.Close > curr.Open && prev1.Close < prev1.Open ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_tweezer_bottom", tweezerBottom);
+            output.AddFeature("fg2_pattern_tweezer_bottom", tweezerBottom);
 
             // Spinning Top
             var spinningTop = range > 0 && body / range < 0.3m &&
                              upperShadow / range > 0.2m && lowerShadow / range > 0.2m ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_spinning_top", spinningTop);
+            output.AddFeature("fg2_pattern_spinning_top", spinningTop);
 
             // Marubozu (no shadows)
             var marubozu = range > 0 && body / range > 0.95m ? 1.0 : 0.0;
-            output.AddFeature("adv_pattern_marubozu", marubozu);
+            output.AddFeature("fg2_pattern_marubozu", marubozu);
 
             // ===== PRICE ACTION PATTERNS =====
 
@@ -144,39 +144,39 @@ namespace ForexFeatureGenerator.Features.Advanced
                 higherHigh = _swingHighs[0] > _swingHighs[1] ? 1.0 : 0.0;
                 lowerLow = _swingLows[0] < _swingLows[1] ? 1.0 : 0.0;
             }
-            output.AddFeature("adv_pattern_higher_high", higherHigh);
-            output.AddFeature("adv_pattern_lower_low", lowerLow);
+            output.AddFeature("fg2_pattern_higher_high", higherHigh);
+            output.AddFeature("fg2_pattern_lower_low", lowerLow);
 
             // Double Top/Bottom
             var doubleTop = DetectDoubleTop(bars, currentIndex);
             var doubleBottom = DetectDoubleBottom(bars, currentIndex);
-            output.AddFeature("adv_pattern_double_top", doubleTop);
-            output.AddFeature("adv_pattern_double_bottom", doubleBottom);
+            output.AddFeature("fg2_pattern_double_top", doubleTop);
+            output.AddFeature("fg2_pattern_double_bottom", doubleBottom);
 
             // Head and Shoulders
             var headShoulders = DetectHeadShoulders(bars, currentIndex);
             var inverseHeadShoulders = DetectInverseHeadShoulders(bars, currentIndex);
-            output.AddFeature("adv_pattern_head_shoulders", headShoulders);
-            output.AddFeature("adv_pattern_inverse_head_shoulders", inverseHeadShoulders);
+            output.AddFeature("fg2_pattern_head_shoulders", headShoulders);
+            output.AddFeature("fg2_pattern_inverse_head_shoulders", inverseHeadShoulders);
 
             // Triangle Pattern
             var triangle = DetectTriangle(bars, currentIndex);
-            output.AddFeature("adv_pattern_triangle", triangle);
+            output.AddFeature("fg2_pattern_triangle", triangle);
 
             // Flag Pattern
             var flag = DetectFlag(bars, currentIndex);
-            output.AddFeature("adv_pattern_flag", flag);
+            output.AddFeature("fg2_pattern_flag", flag);
 
             // Wedge Pattern
             var wedge = DetectWedge(bars, currentIndex);
-            output.AddFeature("adv_pattern_wedge", wedge);
+            output.AddFeature("fg2_pattern_wedge", wedge);
 
             // ===== PATTERN METRICS =====
 
             // Pattern Strength (how many patterns detected)
             var patternCount = bullishEngulfing + bearishEngulfing + hammer + shootingStar +
                               doji + morningStar + eveningStar + threeWhiteSoldiers + threeBlackCrows;
-            output.AddFeature("adv_pattern_strength", patternCount);
+            output.AddFeature("fg2_pattern_strength", patternCount);
 
             // Pattern Confirmation (volume confirmation)
             var volumeConfirmation = 0.0;
@@ -184,17 +184,17 @@ namespace ForexFeatureGenerator.Features.Advanced
             {
                 volumeConfirmation = 1.0;
             }
-            output.AddFeature("adv_pattern_confirmation", volumeConfirmation);
+            output.AddFeature("fg2_pattern_confirmation", volumeConfirmation);
 
             // Pattern Frequency (recent pattern activity)
             _patternHistory.Add((int)patternCount);
             var patternFrequency = _patternHistory.Count > 0 ?
                 _patternHistory.GetValues().Average() : 0.0;
-            output.AddFeature("adv_pattern_frequency", patternFrequency);
+            output.AddFeature("fg2_pattern_frequency", patternFrequency);
 
             // Pattern Success Rate (simplified - based on immediate price movement)
             var successRate = CalculatePatternSuccessRate(bars, currentIndex, (int)patternCount);
-            output.AddFeature("adv_pattern_success_rate", successRate);
+            output.AddFeature("fg2_pattern_success_rate", successRate);
         }
 
         private void UpdateSwingPoints(IReadOnlyList<OhlcBar> bars, int currentIndex)

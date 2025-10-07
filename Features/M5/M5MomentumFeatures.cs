@@ -9,7 +9,7 @@ namespace ForexFeatureGenerator.Features.M5
         public override string Name => "M5_Momentum";
         public override string Category => "Momentum";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 25;
+        public override int Priority => 22;
 
         private readonly RollingWindow<double> _rsiValues = new(50);
         private readonly RollingWindow<double> _momentumValues = new(50);
@@ -25,9 +25,9 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 14)
             {
                 var rsi14 = CalculateRSI(bars, 14, currentIndex);
-                output.AddFeature("m5_rsi_14", rsi14);
-                output.AddFeature("m5_rsi_oversold", rsi14 < 30 ? 1.0 : 0.0);
-                output.AddFeature("m5_rsi_overbought", rsi14 > 70 ? 1.0 : 0.0);
+                output.AddFeature("fg3_rsi_14", rsi14);
+                output.AddFeature("fg3_rsi_oversold", rsi14 < 30 ? 1.0 : 0.0);
+                output.AddFeature("fg3_rsi_overbought", rsi14 > 70 ? 1.0 : 0.0);
 
                 _rsiValues.Add(rsi14);
 
@@ -38,21 +38,21 @@ namespace ForexFeatureGenerator.Features.M5
                     var rsiTrend = CalculateRSITrend(bars, currentIndex, 5);
                     var divergence = (priceTrend > 0 && rsiTrend < 0) ? -1.0 :
                                      (priceTrend < 0 && rsiTrend > 0) ? 1.0 : 0.0;
-                    output.AddFeature("m5_rsi_divergence", divergence);
+                    output.AddFeature("fg3_rsi_divergence", divergence);
                 }
             }
 
             if (currentIndex >= 21)
             {
-                output.AddFeature("m5_rsi_21", CalculateRSI(bars, 21, currentIndex));
+                output.AddFeature("fg3_rsi_21", CalculateRSI(bars, 21, currentIndex));
             }
 
             // ===== STOCHASTIC =====
             if (currentIndex >= 14)
             {
                 var (stochK, stochD) = CalculateStochastic(bars, 14, 3, currentIndex);
-                output.AddFeature("m5_stoch_k_14", stochK);
-                output.AddFeature("m5_stoch_d_14", stochD);
+                output.AddFeature("fg3_stoch_k_14", stochK);
+                output.AddFeature("fg3_stoch_d_14", stochD);
 
                 // Stochastic Divergence
                 if (currentIndex >= 20)
@@ -61,7 +61,7 @@ namespace ForexFeatureGenerator.Features.M5
                     var stochTrend = CalculateStochTrend(bars, currentIndex, 5);
                     var divergence = (priceTrend > 0 && stochTrend < 0) ? -1.0 :
                                     (priceTrend < 0 && stochTrend > 0) ? 1.0 : 0.0;
-                    output.AddFeature("m5_stoch_divergence", divergence);
+                    output.AddFeature("fg3_stoch_divergence", divergence);
                 }
             }
 
@@ -72,7 +72,7 @@ namespace ForexFeatureGenerator.Features.M5
                 var ema26 = EMA(bars, 26, currentIndex);
                 var macdLine = ema12 - ema26;
 
-                output.AddFeature("m5_macd_line", macdLine * 10000);
+                output.AddFeature("fg3_macd_line", macdLine * 10000);
 
                 if (currentIndex >= 35)
                 {
@@ -87,8 +87,8 @@ namespace ForexFeatureGenerator.Features.M5
                     var macdSignal = macdValues.Average(); // Simplified
                     var macdHist = macdLine - macdSignal;
 
-                    output.AddFeature("m5_macd_signal", macdSignal * 10000);
-                    output.AddFeature("m5_macd_histogram", macdHist * 10000);
+                    output.AddFeature("fg3_macd_signal", macdSignal * 10000);
+                    output.AddFeature("fg3_macd_histogram", macdHist * 10000);
 
                     // MACD Cross
                     if (currentIndex >= 36)
@@ -97,7 +97,7 @@ namespace ForexFeatureGenerator.Features.M5
                         var cross = 0.0;
                         if (macdLine > macdSignal && prevMacdLine <= macdSignal) cross = 1.0;
                         else if (macdLine < macdSignal && prevMacdLine >= macdSignal) cross = -1.0;
-                        output.AddFeature("m5_macd_cross", cross);
+                        output.AddFeature("fg3_macd_cross", cross);
                     }
                 }
             }
@@ -106,22 +106,22 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 10)
             {
                 var momentum = close - (double)bars[currentIndex - 10].Close;
-                output.AddFeature("m5_momentum_10", momentum * 10000);
+                output.AddFeature("fg3_momentum_10", momentum * 10000);
                 _momentumValues.Add(momentum);
 
                 // Rate of Change
                 var roc = SafeDiv(momentum, (double)bars[currentIndex - 10].Close) * 100;
-                output.AddFeature("m5_roc_10", roc);
+                output.AddFeature("fg3_roc_10", roc);
 
                 // Momentum Acceleration
                 if (_momentumValues.Count >= 2)
                 {
                     var acceleration = _momentumValues[0] - _momentumValues[1];
-                    output.AddFeature("m5_momentum_acceleration", acceleration * 10000);
+                    output.AddFeature("fg3_momentum_acceleration", acceleration * 10000);
                 }
                 else
                 {
-                    output.AddFeature("m5_momentum_acceleration", 0.0);
+                    output.AddFeature("fg3_momentum_acceleration", 0.0);
                 }
 
                 // Momentum Quality (consistency)
@@ -130,11 +130,11 @@ namespace ForexFeatureGenerator.Features.M5
                     var recent = _momentumValues.GetValues().Take(5).ToArray();
                     var positiveCount = recent.Count(m => m > 0);
                     var quality = (positiveCount / 5.0) * 2 - 1; // Range: -1 to 1
-                    output.AddFeature("m5_momentum_quality", quality);
+                    output.AddFeature("fg3_momentum_quality", quality);
                 }
                 else
                 {
-                    output.AddFeature("m5_momentum_quality", 0.0);
+                    output.AddFeature("fg3_momentum_quality", 0.0);
                 }
             }
 
@@ -142,14 +142,14 @@ namespace ForexFeatureGenerator.Features.M5
             if (currentIndex >= 14)
             {
                 var williamsR = CalculateWilliamsR(bars, 14, currentIndex);
-                output.AddFeature("m5_williams_r", williamsR);
+                output.AddFeature("fg3_williams_r", williamsR);
             }
 
             // ===== ULTIMATE OSCILLATOR =====
             if (currentIndex >= 28)
             {
                 var uo = CalculateUltimateOscillator(bars, currentIndex);
-                output.AddFeature("m5_ultimate_oscillator", uo);
+                output.AddFeature("fg3_ultimate_oscillator", uo);
             }
 
             // ===== MOMENTUM DIVERGENCE =====
@@ -159,7 +159,7 @@ namespace ForexFeatureGenerator.Features.M5
                 var momentumTrend = CalculateTrend(bars, currentIndex, 10, false);
                 var divergence = (priceTrend > 0 && momentumTrend < 0) ? -1.0 :
                                (priceTrend < 0 && momentumTrend > 0) ? 1.0 : 0.0;
-                output.AddFeature("m5_momentum_divergence", divergence);
+                output.AddFeature("fg3_momentum_divergence", divergence);
             }
         }
 

@@ -8,7 +8,7 @@ namespace ForexFeatureGenerator.Features.M1
         public override string Name => "M1_Comprehensive";
         public override string Category => "Comprehensive";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
-        public override int Priority => 10;
+        public override int Priority => 3;
 
         public override void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
@@ -17,9 +17,9 @@ namespace ForexFeatureGenerator.Features.M1
             var bar = bars[currentIndex];
 
             // ===== VOLUME-BASED FEATURES =====
-            output.AddFeature("m1_up_volume_pct", (double)bar.UpTicks / bar.TickVolume * 100);
-            output.AddFeature("m1_down_volume_pct", (double)bar.DownTicks / bar.TickVolume * 100);
-            output.AddFeature("m1_volume_imbalance", ((double)bar.UpTicks - bar.DownTicks) / bar.TickVolume);
+            output.AddFeature("fg1_up_volume_pct", (double)bar.UpTicks / bar.TickVolume * 100);
+            output.AddFeature("fg1_down_volume_pct", (double)bar.DownTicks / bar.TickVolume * 100);
+            output.AddFeature("fg1_volume_imbalance", ((double)bar.UpTicks - bar.DownTicks) / bar.TickVolume);
 
             // ===== PRICE-BASED FEATURES =====
             var range = (double)(bar.High - bar.Low);
@@ -30,16 +30,16 @@ namespace ForexFeatureGenerator.Features.M1
                 var upMove = (double)(bar.High - bar.Open);
                 var downMove = (double)(bar.Open - bar.Low);
 
-                output.AddFeature("m1_up_price_pct", SafeDiv(upMove, range) * 100);
-                output.AddFeature("m1_down_price_pct", SafeDiv(downMove, range) * 100);
+                output.AddFeature("fg1_up_price_pct", SafeDiv(upMove, range) * 100);
+                output.AddFeature("fg1_down_price_pct", SafeDiv(downMove, range) * 100);
             }
             else
             {
-                output.AddFeature("m1_up_price_pct", 0);
-                output.AddFeature("m1_down_price_pct", 0);
+                output.AddFeature("fg1_up_price_pct", 0);
+                output.AddFeature("fg1_down_price_pct", 0);
             }
 
-            output.AddFeature("m1_range_pct", SafeDiv(range, close) * 100);
+            output.AddFeature("fg1_range_pct", SafeDiv(range, close) * 100);
 
             // ===== ENTROPY =====
             if (currentIndex >= 20)
@@ -55,37 +55,37 @@ namespace ForexFeatureGenerator.Features.M1
                 }
 
                 var entropy = CalculateEntropy(returns);
-                output.AddFeature("m1_entropy_20", entropy);
+                output.AddFeature("fg1_entropy_20", entropy);
             }
 
             // ===== RSI =====
             if (currentIndex >= 9)
             {
-                output.AddFeature("m1_rsi_9", CalculateRSI(bars, 9, currentIndex));
+                output.AddFeature("fg1_rsi_9", CalculateRSI(bars, 9, currentIndex));
             }
             if (currentIndex >= 14)
             {
-                output.AddFeature("m1_rsi_14", CalculateRSI(bars, 14, currentIndex));
+                output.AddFeature("fg1_rsi_14", CalculateRSI(bars, 14, currentIndex));
             }
 
             // ===== ATR =====
             if (currentIndex >= 10)
             {
                 var atr10 = ATR(bars, 10, currentIndex);
-                output.AddFeature("m1_atr_10", atr10);
-                output.AddFeature("m1_atr_pct", SafeDiv(atr10, close) * 100);
+                output.AddFeature("fg1_atr_10", atr10);
+                output.AddFeature("fg1_atr_pct", SafeDiv(atr10, close) * 100);
             }
             if (currentIndex >= 14)
             {
-                output.AddFeature("m1_atr_14", ATR(bars, 14, currentIndex));
+                output.AddFeature("fg1_atr_14", ATR(bars, 14, currentIndex));
             }
 
             // ===== STOCHASTIC =====
             if (currentIndex >= 14)
             {
                 var (stochK, stochD) = CalculateStochastic(bars, 14, 3, currentIndex);
-                output.AddFeature("m1_stoch_k", stochK);
-                output.AddFeature("m1_stoch_d", stochD);
+                output.AddFeature("fg1_stoch_k", stochK);
+                output.AddFeature("fg1_stoch_d", stochD);
             }
 
             // ===== BOLLINGER BANDS =====
@@ -96,10 +96,10 @@ namespace ForexFeatureGenerator.Features.M1
                 var bbUpper = sma + 2 * std;
                 var bbLower = sma - 2 * std;
 
-                output.AddFeature("m1_bb_upper", bbUpper);
-                output.AddFeature("m1_bb_lower", bbLower);
-                output.AddFeature("m1_bb_width", SafeDiv(bbUpper - bbLower, sma) * 100);
-                output.AddFeature("m1_bb_pct", SafeDiv(close - bbLower, bbUpper - bbLower) * 100);
+                output.AddFeature("fg1_bb_upper", bbUpper);
+                output.AddFeature("fg1_bb_lower", bbLower);
+                output.AddFeature("fg1_bb_width", SafeDiv(bbUpper - bbLower, sma) * 100);
+                output.AddFeature("fg1_bb_pct", SafeDiv(close - bbLower, bbUpper - bbLower) * 100);
             }
 
             // ===== MACD =====
@@ -109,7 +109,7 @@ namespace ForexFeatureGenerator.Features.M1
                 var ema26 = EMA(bars, 26, currentIndex);
                 var macdLine = ema12 - ema26;
 
-                output.AddFeature("m1_macd_line", macdLine);
+                output.AddFeature("fg1_macd_line", macdLine);
 
                 // Signal line (9-period EMA of MACD) - simplified
                 if (currentIndex >= 35)
@@ -117,8 +117,8 @@ namespace ForexFeatureGenerator.Features.M1
                     var macdSignal = ema12 - ema26; // Simplified
                     var macdHist = macdLine - macdSignal;
 
-                    output.AddFeature("m1_macd_signal", macdSignal);
-                    output.AddFeature("m1_macd_hist", macdHist);
+                    output.AddFeature("fg1_macd_signal", macdSignal);
+                    output.AddFeature("fg1_macd_hist", macdHist);
                 }
             }
 
@@ -126,16 +126,16 @@ namespace ForexFeatureGenerator.Features.M1
             if (currentIndex >= 25)
             {
                 var (aroonUp, aroonDown) = CalculateAroon(bars, 25, currentIndex);
-                output.AddFeature("m1_aroon_up", aroonUp);
-                output.AddFeature("m1_aroon_down", aroonDown);
-                output.AddFeature("m1_aroon_osc", aroonUp - aroonDown);
+                output.AddFeature("fg1_aroon_up", aroonUp);
+                output.AddFeature("fg1_aroon_down", aroonDown);
+                output.AddFeature("fg1_aroon_osc", aroonUp - aroonDown);
             }
 
             // ===== CCI =====
             if (currentIndex >= 20)
             {
                 var cci = CalculateCCI(bars, 20, currentIndex);
-                output.AddFeature("m1_cci_20", cci);
+                output.AddFeature("fg1_cci_20", cci);
             }
         }
 

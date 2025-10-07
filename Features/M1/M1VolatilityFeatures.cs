@@ -9,6 +9,7 @@ namespace ForexFeatureGenerator.Features.M1
         public override string Name => "M1_Volatility";
         public override string Category => "Volatility";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
+        public override int Priority => 4; // Calculate early
 
         private readonly RollingWindow<double> _trueRanges = new(20);
         private readonly RollingWindow<double> _logReturns = new(20);
@@ -30,13 +31,13 @@ namespace ForexFeatureGenerator.Features.M1
             );
 
             _trueRanges.Add(tr);
-            output.AddFeature("m1_tr_current", tr);
+            output.AddFeature("fg1_tr_current", tr);
 
             // ATR(10)
             if (_trueRanges.Count >= 10)
             {
                 var atr = _trueRanges.GetValues().Take(10).Average();
-                output.AddFeature("m1_atr_10", atr);
+                output.AddFeature("fg1_atr_10", atr);
             }
 
             // Log returns for Realized Volatility
@@ -48,11 +49,11 @@ namespace ForexFeatureGenerator.Features.M1
             {
                 var sumSquares = _logReturns.GetValues().Take(20).Sum(r => r * r);
                 var rv = Math.Sqrt(sumSquares);
-                output.AddFeature("m1_rv_20", rv);
+                output.AddFeature("fg1_rv_20", rv);
             }
             else
             {
-                output.AddFeature("m1_rv_20", 0.0);
+                output.AddFeature("fg1_rv_20", 0.0);
             }
         }
 

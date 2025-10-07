@@ -9,7 +9,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "MarketRegime";
         public override string Category => "Regime";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 20;
+        public override int Priority => 13;
 
         private readonly RollingWindow<RegimeSnapshot> _regimeHistory = new(100);
 
@@ -28,8 +28,8 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // Detect current regime
             var (regimeType, confidence) = DetectRegime(bars, currentIndex);
-            output.AddFeature("adv_regime_type", regimeType);
-            output.AddFeature("adv_regime_confidence", confidence);
+            output.AddFeature("fg2_regime_type", regimeType);
+            output.AddFeature("fg2_regime_confidence", confidence);
 
             // Calculate regime duration
             if (_regimeHistory.Count > 0)
@@ -44,51 +44,51 @@ namespace ForexFeatureGenerator.Features.Advanced
                     else
                         break;
                 }
-                output.AddFeature("adv_regime_duration", duration);
+                output.AddFeature("fg2_regime_duration", duration);
             }
             else
             {
-                output.AddFeature("adv_regime_duration", 1);
+                output.AddFeature("fg2_regime_duration", 1);
             }
 
             // Transition probability
             if (_regimeHistory.Count >= 50)
             {
                 var transitionProb = CalculateTransitionProbability();
-                output.AddFeature("adv_regime_transition_prob", transitionProb);
+                output.AddFeature("fg2_regime_transition_prob", transitionProb);
             }
             else
             {
-                output.AddFeature("adv_regime_transition_prob", 0.0);
+                output.AddFeature("fg2_regime_transition_prob", 0.0);
             }
 
             // GARCH volatility estimation
             var garchVol = EstimateGARCHVolatility(bars, currentIndex);
-            output.AddFeature("adv_garch_volatility", garchVol);
+            output.AddFeature("fg2_garch_volatility", garchVol);
 
             // Jump detection
             var jumpIntensity = DetectJumps(bars, currentIndex);
-            output.AddFeature("adv_jump_intensity", jumpIntensity);
+            output.AddFeature("fg2_jump_intensity", jumpIntensity);
 
             // Vol of vol
             var volOfVol = CalculateVolOfVol(bars, currentIndex);
-            output.AddFeature("adv_vol_of_vol", volOfVol);
+            output.AddFeature("fg2_vol_of_vol", volOfVol);
 
             // Fractal dimension
             var fractalDim = CalculateFractalDimension(bars, currentIndex);
-            output.AddFeature("adv_fractal_dimension", fractalDim);
+            output.AddFeature("fg2_fractal_dimension", fractalDim);
 
             // Detrended fluctuation analysis
             var dfa = CalculateDFA(bars, currentIndex);
-            output.AddFeature("adv_detrended_fluctuation", dfa);
+            output.AddFeature("fg2_detrended_fluctuation", dfa);
 
             // Market efficiency
             var efficiencyRatio = CalculateEfficiencyRatio(bars, currentIndex);
-            output.AddFeature("adv_efficiency_ratio", efficiencyRatio);
+            output.AddFeature("fg2_efficiency_ratio", efficiencyRatio);
 
             // Variance ratio test
             var varianceRatio = CalculateVarianceRatio(bars, currentIndex);
-            output.AddFeature("adv_variance_ratio", varianceRatio);
+            output.AddFeature("fg2_variance_ratio", varianceRatio);
 
             // Tail risk metrics
             CalculateTailRisk(output, bars, currentIndex);
