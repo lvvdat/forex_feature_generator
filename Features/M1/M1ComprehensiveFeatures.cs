@@ -164,34 +164,6 @@ namespace ForexFeatureGenerator.Features.M1
             return entropy;
         }
 
-        private double CalculateHurstApproximation(List<double> returns)
-        {
-            // Simplified R/S analysis approximation
-            if (returns.Count < 10) return 0.5;
-
-            var mean = returns.Average();
-            var deviations = returns.Select(r => r - mean).ToArray();
-
-            // Cumulative sum
-            var cumSum = new double[deviations.Length];
-            cumSum[0] = deviations[0];
-            for (int i = 1; i < deviations.Length; i++)
-            {
-                cumSum[i] = cumSum[i - 1] + deviations[i];
-            }
-
-            var range = cumSum.Max() - cumSum.Min();
-            var stdDev = Math.Sqrt(returns.Select(r => Math.Pow(r - mean, 2)).Average());
-
-            if (stdDev < 1e-10) return 0.5;
-
-            var rs = range / stdDev;
-            var hurst = Math.Log(rs) / Math.Log(returns.Count);
-
-            // Clamp to [0, 1]
-            return Math.Max(0, Math.Min(1, hurst));
-        }
-
         private double CalculateRSI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
         {
             if (currentIndex < period) return 50;

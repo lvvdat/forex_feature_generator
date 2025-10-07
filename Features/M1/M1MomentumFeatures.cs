@@ -14,7 +14,7 @@ namespace ForexFeatureGenerator.Features.M1
 
         public override void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
-            if (currentIndex < 10) return;
+            if (currentIndex < 5) return;
 
             // EMAs
             var ema5 = EMA(bars, 5, currentIndex);

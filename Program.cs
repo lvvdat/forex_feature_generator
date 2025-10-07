@@ -19,7 +19,7 @@ namespace ForexFeatureGenerator
     class Program
     {
         // ============= CONFIGURATION =============
-        private static readonly string OUTPUT_DIR = "processed";
+        private static readonly string OUTPUT_DIR = "D:\\Projects\\NexusTradingSystem\\data\\processed";
         private static readonly string LOG_FILE = Path.Combine("logs", $"log_{DateTime.Now:yyyyMMdd_HHmmss}.log");
 
         // Label Generation Configuration
@@ -54,14 +54,14 @@ namespace ForexFeatureGenerator
             Log("PHASE 1: DATA LOADING", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var tickData = await LoadTickDataAsync("data/ticks_data.csv");
+            var tickData = await LoadTickDataAsync("D:\\Projects\\NexusTradingSystem\\data\\raw\\ticks_data.csv");
             ValidateTickData(tickData);
 
             // ===== PHASE 2: LABEL GENERATION =====
             Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
             Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels_{DateTime.Now:yyyyMMdd_HHmmss}.parquet");
+            var outputPath = Path.Combine(OUTPUT_DIR, $"features_labels.parquet");
             var generatedLabels = await GenerateFeaturesAndLabelsAsync(tickData, outputPath);
 
             AnalyzeGeneratedLabels(generatedLabels);
