@@ -147,21 +147,11 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("fg2_pattern_higher_high", higherHigh);
             output.AddFeature("fg2_pattern_lower_low", lowerLow);
 
-            // Double Top/Bottom
-            var doubleTop = DetectDoubleTop(bars, currentIndex);
-            var doubleBottom = DetectDoubleBottom(bars, currentIndex);
-            output.AddFeature("fg2_pattern_double_top", doubleTop);
-            output.AddFeature("fg2_pattern_double_bottom", doubleBottom);
-
             // Head and Shoulders
             var headShoulders = DetectHeadShoulders(bars, currentIndex);
             var inverseHeadShoulders = DetectInverseHeadShoulders(bars, currentIndex);
             output.AddFeature("fg2_pattern_head_shoulders", headShoulders);
             output.AddFeature("fg2_pattern_inverse_head_shoulders", inverseHeadShoulders);
-
-            // Triangle Pattern
-            var triangle = DetectTriangle(bars, currentIndex);
-            output.AddFeature("fg2_pattern_triangle", triangle);
 
             // Flag Pattern
             var flag = DetectFlag(bars, currentIndex);

@@ -110,16 +110,6 @@ namespace ForexFeatureGenerator.Features.M1
                 var macdLine = ema12 - ema26;
 
                 output.AddFeature("fg1_macd_line", macdLine);
-
-                // Signal line (9-period EMA of MACD) - simplified
-                if (currentIndex >= 35)
-                {
-                    var macdSignal = ema12 - ema26; // Simplified
-                    var macdHist = macdLine - macdSignal;
-
-                    output.AddFeature("fg1_macd_signal", macdSignal);
-                    output.AddFeature("fg1_macd_hist", macdHist);
-                }
             }
 
             // ===== AROON =====
