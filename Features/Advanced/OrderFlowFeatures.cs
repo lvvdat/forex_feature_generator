@@ -41,7 +41,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Calculate order flow metrics
             var buyVolume = bar.UpVolume;
             var sellVolume = bar.DownVolume;
-            var totalVolume = buyVolume + sellVolume;
+            var totalVolume = bar.TickVolume;
 
             if (totalVolume == 0) return;
 
@@ -85,10 +85,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // Aggressive ratio (market orders vs limit orders proxy)
-            var aggressiveRatio = SafeDiv(
-                Math.Abs((double)netFlow),
-                (double)totalVolume
-            );
+            var aggressiveRatio = SafeDiv(Math.Abs((double)netFlow), (double)totalVolume);
             output.AddFeature("fg2_of_aggressive_ratio", aggressiveRatio);
 
             // VWAP calculation and deviation
@@ -203,30 +200,27 @@ namespace ForexFeatureGenerator.Features.Advanced
                     recentSellVolume += (double)bars[i].DownVolume;
                 }
 
-                // Depth changes (proxy)
-                var bidDepthChange = SafeDiv(
-                    recentBuyVolume - recentSellVolume,
-                    recentBuyVolume + recentSellVolume
-                );
-                output.AddFeature("fg2_of_bid_depth_change", bidDepthChange);
+                if (recentBuyVolume + recentSellVolume == 0)
+                {
+                    output.AddFeature("fg2_of_bid_depth_change", 0.0);
+                    output.AddFeature("fg2_of_ask_depth_change", 0.0);
+                }
+                else
+                {
+                    // Depth changes (proxy)
+                    var bidDepthChange = SafeDiv(
+                        recentBuyVolume - recentSellVolume,
+                        recentBuyVolume + recentSellVolume
+                    );
+                    output.AddFeature("fg2_of_bid_depth_change", bidDepthChange);
 
-                var askDepthChange = SafeDiv(
-                    recentSellVolume - recentBuyVolume,
-                    recentBuyVolume + recentSellVolume
-                );
-                output.AddFeature("fg2_of_ask_depth_change", askDepthChange);
-
-                // Book imbalance
-                var bookImbalance = SafeDiv(
-                    recentBuyVolume - recentSellVolume,
-                    recentBuyVolume + recentSellVolume
-                );
-                output.AddFeature("fg2_of_book_imbalance", bookImbalance);
+                    var askDepthChange = SafeDiv(
+                        recentSellVolume - recentBuyVolume,
+                        recentBuyVolume + recentSellVolume
+                    );
+                    output.AddFeature("fg2_of_ask_depth_change", askDepthChange);
+                }
             }
-
-            // Micro price (volume-weighted mid price)
-            var microPrice = (double)bar.Close + (double)bar.AvgSpread * SafeDiv((double)bar.UpVolume, (double)(bar.UpVolume + bar.DownVolume));
-            output.AddFeature("fg2_of_micro_price", microPrice);
         }
 
         private void CalculateFlowPersistence(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)

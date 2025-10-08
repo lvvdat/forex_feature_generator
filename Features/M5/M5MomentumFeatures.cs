@@ -185,27 +185,76 @@ namespace ForexFeatureGenerator.Features.M5
             return 100 - (100 / (1 + rs));
         }
 
-        private (double k, double d) CalculateStochastic(IReadOnlyList<OhlcBar> bars, int period, int smoothK, int currentIndex)
+        // Stochastic Oscillator: %K (with smoothing) and %D (3-SMA of %K)
+        private (double k, double d) CalculateStochastic(
+            IReadOnlyList<OhlcBar> bars,
+            int period,
+            int smoothK,
+            int currentIndex)
         {
-            if (currentIndex < period) return (50, 50);
+            // --- Validate inputs ---
+            if (bars == null || bars.Count == 0) return (50, 50);
+            if (period <= 0) period = 14;          // sensible default
+            if (smoothK <= 0) smoothK = 1;         // 1 => no smoothing of %K
+            const int dPeriod = 3;                  // standard %D = 3-SMA of %K
 
-            double highestHigh = double.MinValue;
-            double lowestLow = double.MaxValue;
+            // Earliest index needed to compute %D of smoothed %K at currentIndex:
+            // raw %K requires (period - 1) lookback
+            // smoothed %K requires (smoothK - 1) more
+            // %D requires (dPeriod - 1) more
+            int minIndexNeeded = (period - 1) + (smoothK - 1) + (dPeriod - 1);
+            if (currentIndex < minIndexNeeded) return (50, 50);
+            if (currentIndex >= bars.Count) currentIndex = bars.Count - 1;
 
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
+            // Helper: compute raw %K at a given index (no smoothing)
+            double RawKAt(int idx)
             {
-                highestHigh = Math.Max(highestHigh, (double)bars[i].High);
-                lowestLow = Math.Min(lowestLow, (double)bars[i].Low);
+                int start = idx - period + 1;
+                double highestHigh = double.MinValue;
+                double lowestLow = double.MaxValue;
+
+                for (int i = start; i <= idx; i++)
+                {
+                    double hi = (double)bars[i].High;
+                    double lo = (double)bars[i].Low;
+                    if (hi > highestHigh) highestHigh = hi;
+                    if (lo < lowestLow) lowestLow = lo;
+                }
+
+                double close = (double)bars[idx].Close;
+                double range = highestHigh - lowestLow;
+
+                if (range <= 0.0) return 50.0; // flat range -> neutral
+                return ((close - lowestLow) / range) * 100.0;
             }
 
-            var close = (double)bars[currentIndex].Close;
-            var k = SafeDiv((close - lowestLow), (highestHigh - lowestLow)) * 100;
+            // Helper: simple moving average over f(idx) for N points ending at idx
+            double SMA(Func<int, double> f, int idx, int N)
+            {
+                double sum = 0.0;
+                for (int i = idx - N + 1; i <= idx; i++)
+                    sum += f(i);
+                return sum / N;
+            }
 
-            // %D is SMA of %K (simplified)
-            var d = k; // Simplified - in production, calculate proper SMA
+            // Smoothed %K at an index: SMA of raw %K over 'smoothK' bars
+            double SmoothedKAt(int idx)
+            {
+                if (smoothK == 1) return RawKAt(idx);
+                return SMA(RawKAt, idx, smoothK);
+            }
+
+            // Current %K and %D
+            double k = SmoothedKAt(currentIndex);
+            double d = SMA(SmoothedKAt, currentIndex, dPeriod);
+
+            // Clamp to [0,100] just in case of numerical quirks
+            k = Math.Min(100.0, Math.Max(0.0, k));
+            d = Math.Min(100.0, Math.Max(0.0, d));
 
             return (k, d);
         }
+
 
         private double CalculateWilliamsR(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
         {

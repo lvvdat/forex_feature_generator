@@ -410,7 +410,6 @@ namespace ForexFeatureGenerator.Normalization
                 "fg2_of_quote_imbalance",
                 "fg2_of_bid_depth_change",
                 "fg2_of_ask_depth_change",
-                "fg2_of_book_imbalance",
                 "fg2_of_flow_autocorr",
                 
                 // Liquidity ratios
@@ -519,10 +518,6 @@ namespace ForexFeatureGenerator.Normalization
             // EMAs and SMAs (price-based, sensitive to outliers)
             AddFeatures(map, NormalizationType.Robust, new[]
             {
-                // M1 moving averages
-                "fg1_ema_5",
-                "fg1_ema_8",
-                
                 // M5 moving averages
                 "fg3_ema_9",
                 "fg3_ema_21",
@@ -550,12 +545,6 @@ namespace ForexFeatureGenerator.Normalization
                 "fg3_keltner_lower",
                 "fg3_donchian_upper",
                 "fg3_donchian_lower"
-            });
-
-            // Microstructure price features
-            AddFeatures(map, NormalizationType.Robust, new[]
-            {
-                "fg2_of_micro_price"
             });
 
             // Volatility features (prone to spikes)
@@ -632,6 +621,7 @@ namespace ForexFeatureGenerator.Normalization
                 // MACD (unbounded difference between EMAs)
                 "fg1_macd_line",
                 "fg1_macd_signal",
+                "fg1_macd_cross",
                 "fg1_macd_histogram",
                 "fg3_macd_line",
                 "fg3_macd_signal",

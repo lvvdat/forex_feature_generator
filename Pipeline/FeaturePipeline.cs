@@ -53,7 +53,8 @@ namespace ForexFeatureGenerator.Pipeline
                     continue;
 
                 var bars = aggregator.GetHistoricalBars(500);
-                if (bars.Count == 0) continue;
+                if (bars.Count == 0)
+                    continue;
 
                 // Use index based on bars list (0 = most recent)
                 calculator.Calculate(output, bars, bars.Count - 1);
