@@ -359,86 +359,134 @@ namespace ForexFeatureGenerator.Normalization
             // RSI indicators (bounded 0-100, already normalized)
             AddFeatures(map, NormalizationType.None, new[]
             {
-                "fg1_rsi_9", "fg1_rsi_14",  // M1 RSI
-                "fg3_rsi_9", "fg3_rsi_14", "fg3_rsi_21",  // M5 RSI
-                "fg3_rsi_oversold", "fg3_rsi_overbought"  // RSI binary flags
+                "fg1_rsi_9",
+                "fg1_rsi_14",  // M1 RSI
+                "fg3_rsi_9",
+                "fg3_rsi_14",
+                "fg3_rsi_21",  // M5 RSI
+                "fg3_rsi_oversold",
+                "fg3_rsi_overbought"  // RSI binary flags
             });
 
             // Stochastic oscillators (bounded 0-100)
             AddFeatures(map, NormalizationType.None, new[]
             {
-                "fg1_stoch_k", "fg1_stoch_d",  // M1 stochastic
-                "fg3_stoch_k_14", "fg3_stoch_d_14"  // M5 stochastic
+                "fg1_stoch_k",
+                "fg1_stoch_d",  // M1 stochastic
+                "fg3_stoch_k_14",
+                "fg3_stoch_d_14"  // M5 stochastic
             });
 
             // Aroon indicators (bounded 0-100)
             AddFeatures(map, NormalizationType.None, new[]
             {
-                "fg1_aroon_up", "fg1_aroon_down", "fg1_aroon_osc"
+                "fg1_aroon_up",
+                "fg1_aroon_down",
+                "fg1_aroon_osc"
             });
 
             // Percentages and normalized ratios (already 0-1 or 0-100)
             AddFeatures(map, NormalizationType.None, new[]
             {
                 // M1 percentages
-                "fg1_up_volume_pct", "fg1_down_volume_pct",
-                "fg1_up_price_pct", "fg1_down_price_pct",
-                "fg1_range_pct", "fg1_bb_pct", "fg1_atr_pct",
-                "fg1_upper_wick", "fg1_lower_wick",
-                "fg1_body_size", "fg1_normalized_range",
-                "fg1_ema_ratio", "fg1_volume_imbalance",
+                "fg1_up_volume_pct",
+                "fg1_down_volume_pct",
+                "fg1_up_price_pct",
+                "fg1_down_price_pct",
+                "fg1_range_pct",
+                "fg1_bb_pct",
+                "fg1_atr_pct",
+                "fg1_upper_wick",
+                "fg1_lower_wick",
+                "fg1_body_size",
+                "fg1_normalized_range",
+                "fg1_ema_ratio",
+                "fg1_volume_imbalance",
                 
                 // Order flow ratios (already normalized -1 to 1)
-                "fg2_of_buy_sell_ratio", "fg2_of_pressure_ratio",
-                "fg2_of_aggressive_ratio", "fg2_of_quote_imbalance",
-                "fg2_of_bid_depth_change", "fg2_of_ask_depth_change",
-                "fg2_of_book_imbalance", "fg2_of_flow_autocorr",
+                "fg2_of_buy_sell_ratio",
+                "fg2_of_pressure_ratio",
+                "fg2_of_aggressive_ratio",
+                "fg2_of_quote_imbalance",
+                "fg2_of_bid_depth_change",
+                "fg2_of_ask_depth_change",
+                "fg2_of_book_imbalance",
+                "fg2_of_flow_autocorr",
                 
                 // Liquidity ratios
-                "fg2_liquidity_resilience", "fg2_liquidity_tick_clustering",
+                "fg2_liquidity_resilience",
+                "fg2_liquidity_tick_clustering",
                 
                 // Market regime (categorical and confidence values)
-                "fg2_regime_type", "fg2_regime_confidence",
-                "fg2_regime_transition_prob", "fg2_efficiency_ratio",
-                "fg2_variance_ratio", "fg2_jump_intensity"
+                "fg2_regime_type",
+                "fg2_regime_confidence",
+                "fg2_regime_transition_prob",
+                "fg2_efficiency_ratio",
+                "fg2_variance_ratio",
+                "fg2_jump_intensity"
             });
 
             // Binary pattern indicators (0 or 1)
             AddFeatures(map, NormalizationType.None, new[]
             {
                 // Candlestick patterns
-                "fg2_pattern_bullish_engulfing", "fg2_pattern_bearish_engulfing",
-                "fg2_pattern_hammer", "fg2_pattern_shooting_star",
-                "fg2_pattern_doji", "fg2_pattern_three_white_soldiers",
-                "fg2_pattern_three_black_crows", "fg2_pattern_morning_star",
-                "fg2_pattern_evening_star", "fg2_pattern_bullish_harami",
-                "fg2_pattern_bearish_harami", "fg2_pattern_tweezer_top",
-                "fg2_pattern_tweezer_bottom", "fg2_pattern_spinning_top",
+                "fg2_pattern_bullish_engulfing",
+                "fg2_pattern_bearish_engulfing",
+                "fg2_pattern_hammer",
+                "fg2_pattern_shooting_star",
+                "fg2_pattern_doji",
+                "fg2_pattern_three_white_soldiers",
+                "fg2_pattern_three_black_crows",
+                "fg2_pattern_morning_star",
+                "fg2_pattern_evening_star",
+                "fg2_pattern_bullish_harami",
+                "fg2_pattern_bearish_harami",
+                "fg2_pattern_tweezer_top",
+                "fg2_pattern_tweezer_bottom",
+                "fg2_pattern_spinning_top",
                 "fg2_pattern_marubozu",
                 
                 // Price action patterns
-                "fg2_pattern_higher_high", "fg2_pattern_lower_low",
-                "fg2_pattern_head_shoulders", "fg2_pattern_inverse_head_shoulders",
-                "fg2_pattern_flag", "fg2_pattern_wedge",
-                "fg2_pattern_confirmation", "fg2_pattern_success_rate",
+                "fg2_pattern_higher_high",
+                "fg2_pattern_lower_low",
+                "fg2_pattern_head_shoulders",
+                "fg2_pattern_inverse_head_shoulders",
+                "fg2_pattern_flag",
+                "fg2_pattern_wedge",
+                "fg2_pattern_confirmation",
+                "fg2_pattern_success_rate",
                 
                 // Pattern metrics
-                "fg2_pattern_strength", "fg2_pattern_frequency"
+                "fg2_pattern_strength",
+                "fg2_pattern_frequency"
             });
 
             // M5 bounded indicators
             AddFeatures(map, NormalizationType.None, new[]
             {
-                "fg3_bb_position", "fg3_bb_percent_b", "fg3_bb_squeeze",
-                "fg3_range_expansion", "fg3_range_contraction",
-                "fg3_volume_ratio", "fg3_obv_divergence",
-                "fg3_pvi", "fg3_nvi", "fg3_mfi", "fg3_cmf",
-                "fg3_volume_price_trend", "fg3_price_above_ema50",
-                "fg3_ema_alignment", "fg3_trend_consistency",
-                "fg3_keltner_position", "fg3_ema_cross_9_21",
-                "fg3_ema_cross_21_50", "fg3_macd_cross",
-                "fg3_rsi_divergence", "fg3_stoch_divergence",
-                "fg3_momentum_divergence", "fg3_momentum_quality"
+                "fg3_bb_position",
+                "fg3_bb_percent_b",
+                "fg3_bb_squeeze",
+                "fg3_range_expansion",
+                "fg3_range_contraction",
+                "fg3_volume_ratio",
+                "fg3_obv_divergence",
+                "fg3_pvi",
+                "fg3_nvi",
+                "fg3_mfi",
+                "fg3_cmf",
+                "fg3_volume_price_trend",
+                "fg3_price_above_ema50",
+                "fg3_ema_alignment",
+                "fg3_trend_consistency",
+                "fg3_keltner_position",
+                "fg3_ema_cross_9_21",
+                "fg3_ema_cross_21_50",
+                "fg3_macd_cross",
+                "fg3_rsi_divergence",
+                "fg3_stoch_divergence",
+                "fg3_momentum_divergence",
+                "fg3_momentum_quality"
             });
 
             // Williams %R (bounded -100 to 0)
@@ -456,8 +504,10 @@ namespace ForexFeatureGenerator.Normalization
             // Labels and targets (keep raw for interpretability)
             AddFeatures(map, NormalizationType.None, new[]
             {
-                "label", "confidence",
-                "long_profit_pips", "short_profit_pips",
+                "label",
+                "confidence",
+                "long_profit_pips",
+                "short_profit_pips",
                 "timestamp"  // Keep timestamp as-is
             });
 
@@ -470,11 +520,15 @@ namespace ForexFeatureGenerator.Normalization
             AddFeatures(map, NormalizationType.Robust, new[]
             {
                 // M1 moving averages
-                "fg1_ema_5", "fg1_ema_8",
+                "fg1_ema_5",
+                "fg1_ema_8",
                 
                 // M5 moving averages
-                "fg3_ema_9", "fg3_ema_21", "fg3_ema_50",
-                "fg3_sma_20", "fg3_sma_50",
+                "fg3_ema_9",
+                "fg3_ema_21",
+                "fg3_ema_50",
+                "fg3_sma_20",
+                "fg3_sma_50",
                 
                 // VWAP
                 "fg2_of_vwap"
@@ -483,15 +537,19 @@ namespace ForexFeatureGenerator.Normalization
             // Bollinger Bands (price levels)
             AddFeatures(map, NormalizationType.Robust, new[]
             {
-                "fg1_bb_upper", "fg1_bb_lower",
-                "fg3_bb_upper", "fg3_bb_lower"
+                "fg1_bb_upper",
+                "fg1_bb_lower",
+                "fg3_bb_upper",
+                "fg3_bb_lower"
             });
 
             // Channel indicators (price levels)
             AddFeatures(map, NormalizationType.Robust, new[]
             {
-                "fg3_keltner_upper", "fg3_keltner_lower",
-                "fg3_donchian_upper", "fg3_donchian_lower"
+                "fg3_keltner_upper",
+                "fg3_keltner_lower",
+                "fg3_donchian_upper",
+                "fg3_donchian_lower"
             });
 
             // Microstructure price features
@@ -504,7 +562,9 @@ namespace ForexFeatureGenerator.Normalization
             AddFeatures(map, NormalizationType.Robust, new[]
             {
                 // M1 volatility
-                "fg1_tr_current", "fg1_atr_10", "fg1_atr_14",
+                "fg1_tr_current",
+                "fg1_atr_10",
+                "fg1_atr_14",
                 "fg1_rv_20",  // Realized volatility
                 
                 // Advanced volatility
@@ -512,8 +572,11 @@ namespace ForexFeatureGenerator.Normalization
                 "fg2_vol_of_vol",
                 
                 // M5 volatility
-                "fg3_atr_14", "fg3_atr_21", "fg3_normalized_atr",
-                "fg3_hist_vol_10", "fg3_hist_vol_20",
+                "fg3_atr_14",
+                "fg3_atr_21",
+                "fg3_normalized_atr",
+                "fg3_hist_vol_10",
+                "fg3_hist_vol_20",
                 "fg3_true_range"
             });
 
@@ -526,14 +589,18 @@ namespace ForexFeatureGenerator.Normalization
             AddFeatures(map, NormalizationType.Standard, new[]
             {
                 // M1 momentum
-                "fg1_roc_5", "fg1_roc_10",
+                "fg1_roc_5",
+                "fg1_roc_10",
                 "fg1_price_acceleration",
                 
                 // M5 momentum
-                "fg3_momentum_10", "fg3_roc_10",
+                "fg3_momentum_10",
+                "fg3_roc_10",
                 "fg3_momentum_acceleration",
-                "fg3_price_slope", "fg3_slope_acceleration",
-                "fg3_ema9_slope", "fg3_ema21_slope"
+                "fg3_price_slope",
+                "fg3_slope_acceleration",
+                "fg3_ema9_slope",
+                "fg3_ema21_slope"
             });
 
             // Spread features (already scaled by 10000 but need standardization)
@@ -563,8 +630,12 @@ namespace ForexFeatureGenerator.Normalization
                 "fg1_cci_20",
                 
                 // MACD (unbounded difference between EMAs)
-                "fg1_macd_line", "fg1_macd_signal", "fg1_macd_histogram",
-                "fg3_macd_line", "fg3_macd_signal", "fg3_macd_histogram"
+                "fg1_macd_line",
+                "fg1_macd_signal",
+                "fg1_macd_histogram",
+                "fg3_macd_line",
+                "fg3_macd_signal",
+                "fg3_macd_histogram"
             });
 
             // Flow dynamics
@@ -580,21 +651,25 @@ namespace ForexFeatureGenerator.Normalization
                 "fg1_entropy_20",  // Shannon entropy
                 "fg2_fractal_dimension",
                 "fg2_detrended_fluctuation",
-                "fg3_atr_expansion", "fg3_atr_ratio",
-                "fg3_vol_ratio", "fg3_chaikin_volatility",
+                "fg3_atr_expansion",
+                "fg3_atr_ratio",
+                "fg3_vol_ratio",
+                "fg3_chaikin_volatility",
                 "fg3_volatility_trend"
             });
 
             // Bollinger Band width (needs standardization)
             AddFeatures(map, NormalizationType.Standard, new[]
             {
-                "fg1_bb_width", "fg3_bb_width"
+                "fg1_bb_width",
+                "fg3_bb_width"
             });
 
             // Trend and distance metrics
             AddFeatures(map, NormalizationType.Standard, new[]
             {
-                "fg3_ma_distance", "fg3_trend_strength",
+                "fg3_ma_distance",
+                "fg3_trend_strength",
                 "fg3_donchian_width"
             });
 
@@ -607,7 +682,8 @@ namespace ForexFeatureGenerator.Normalization
             AddFeatures(map, NormalizationType.LogRobust, new[]
             {
                 // Basic volume
-                "fg3_volume", "fg3_volume_ma",
+                "fg3_volume",
+                "fg3_volume_ma",
                 
                 // Order flow
                 "fg2_of_net_flow",
@@ -615,7 +691,8 @@ namespace ForexFeatureGenerator.Normalization
                 "fg2_of_large_order_ratio",
                 
                 // On-balance volume
-                "fg3_obv", "fg3_obv_ma",
+                "fg3_obv",
+                "fg3_obv_ma",
                 
                 // Volume indicators
                 "fg3_volume_force",
@@ -665,9 +742,9 @@ namespace ForexFeatureGenerator.Normalization
             // Tail risk metrics (extreme value distributions)
             AddFeatures(map, NormalizationType.LogStandard, new[]
             {
-                "avd_left_tail_risk",
-                "avd_right_tail_risk",
-                "avd_tail_asymmetry"
+                "fg2_left_tail_risk",
+                "fg2_right_tail_risk",
+                "fg2_tail_asymmetry"
             });
 
             return map;

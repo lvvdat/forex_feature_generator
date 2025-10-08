@@ -36,8 +36,7 @@ namespace ForexFeatureGenerator.Features.M5
                 {
                     var priceTrend = CalculateTrend(bars, currentIndex, 5, true);
                     var rsiTrend = CalculateRSITrend(bars, currentIndex, 5);
-                    var divergence = (priceTrend > 0 && rsiTrend < 0) ? -1.0 :
-                                     (priceTrend < 0 && rsiTrend > 0) ? 1.0 : 0.0;
+                    var divergence = (priceTrend > 0 && rsiTrend < 0) ? -1.0 : (priceTrend < 0 && rsiTrend > 0) ? 1.0 : 0.0;
                     output.AddFeature("fg3_rsi_divergence", divergence);
                 }
             }
@@ -59,8 +58,7 @@ namespace ForexFeatureGenerator.Features.M5
                 {
                     var priceTrend = CalculateTrend(bars, currentIndex, 5, true);
                     var stochTrend = CalculateStochTrend(bars, currentIndex, 5);
-                    var divergence = (priceTrend > 0 && stochTrend < 0) ? -1.0 :
-                                    (priceTrend < 0 && stochTrend > 0) ? 1.0 : 0.0;
+                    var divergence = (priceTrend > 0 && stochTrend < 0) ? -1.0 : (priceTrend < 0 && stochTrend > 0) ? 1.0 : 0.0;
                     output.AddFeature("fg3_stoch_divergence", divergence);
                 }
             }

@@ -398,9 +398,9 @@ namespace ForexFeatureGenerator.Features.Advanced
             var leftTail = returns.Take((int)(returns.Count * 0.05)).Average();
             var rightTail = returns.Skip((int)(returns.Count * 0.95)).Average();
 
-            output.AddFeature("avd_left_tail_risk", Math.Abs(leftTail));
-            output.AddFeature("avd_right_tail_risk", Math.Abs(rightTail));
-            output.AddFeature("avd_tail_asymmetry", SafeDiv(Math.Abs(rightTail), Math.Abs(leftTail), 1.0));
+            output.AddFeature("fg2_left_tail_risk", Math.Abs(leftTail));
+            output.AddFeature("fg2_right_tail_risk", Math.Abs(rightTail));
+            output.AddFeature("fg2_tail_asymmetry", SafeDiv(Math.Abs(rightTail), Math.Abs(leftTail), 1.0));
         }
 
         public override void Reset()
