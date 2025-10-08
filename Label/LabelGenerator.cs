@@ -5,6 +5,7 @@ namespace ForexFeatureGenerator.Label
     // Label Generation Classes
     public class LabelGenerationConfig
     {
+        public double StopLossPips { get; set; }  // If 0 or less, SL is inferred from spread & DistancePips
         public double TriggerPips { get; set; }
         public double DistancePips { get; set; }
         public int MaxFutureTicks { get; set; }
@@ -31,6 +32,12 @@ namespace ForexFeatureGenerator.Label
         private const double DEFAULT_TAKE_PROFIT_MULTIPLIER = 3.0;
         private const double MAX_TIME_LIMIT_TICKS = 600;
 
+        /// <summary>
+        /// Generate label using trailing stop logic and a determined Stop Loss.
+        /// Stop Loss selection:
+        /// - If config.StopLossPips > 0, use it.
+        /// - Else, infer SL from current spread and DistancePips with a minimum floor.
+        /// </summary>
         public static LabelResult GenerateLabel(
             LabelGenerationConfig config,
             TickData currentTick,
@@ -42,45 +49,114 @@ namespace ForexFeatureGenerator.Label
             int ticksToAnalyze = Math.Min(futureTicks.Count, config.MaxFutureTicks);
             var analysisWindow = futureTicks.Take(ticksToAnalyze).ToList();
 
-            var longResult = SimulateTrailingStop(currentTick, analysisWindow, config.TriggerPips, config.DistancePips, true);
-            var shortResult = SimulateTrailingStop(currentTick, analysisWindow, config.TriggerPips, config.DistancePips, false);
+            // --- Determine Stop Loss (in pips) ---
+            // NOTE: Uses 0.0001 as pip size. If you trade JPY or fractional pips,
+            // add config.PipSize and replace PIP below accordingly.
+            const double PIP = 0.0001;
+            const double DEFAULT_MIN_SL_PIPS = 5.0;     // floor to avoid too-tight SL
+            const double DEFAULT_SPREAD_MULT = 3.0;     // spread multiplier when inferring SL
+
+            double spreadPips = (double)(currentTick.Ask - currentTick.Bid) / PIP;
+
+            // Prefer explicit config, otherwise infer from spread & DistancePips
+            double stopLossPips =
+                (config.StopLossPips > 0.0)
+                    ? config.StopLossPips
+                    : Math.Max(
+                        DEFAULT_MIN_SL_PIPS,
+                        Math.Max(config.DistancePips, spreadPips * DEFAULT_SPREAD_MULT)
+                      );
+
+            // --- Simulate both directions with Stop Loss ---
+            var longResult = SimulateTrailingStop(
+                currentTick,
+                analysisWindow,
+                config.TriggerPips,
+                config.DistancePips,
+                stopLossPips,
+                isLong: true);
+
+            var shortResult = SimulateTrailingStop(
+                currentTick,
+                analysisWindow,
+                config.TriggerPips,
+                config.DistancePips,
+                stopLossPips,
+                isLong: false);
 
             return DetermineLabel(longResult, shortResult, config);
         }
 
+
+        /// <summary>
+        /// Simulates a trade outcome with activation-based trailing stop, fixed Stop Loss, and time limit.
+        /// Exit priority per tick: StopLoss -> TakeProfit -> TrailingStop -> TimeLimit
+        /// MFE/MAE tracked in price units and converted to pips at the end.
+        /// </summary>
         private static TrailingStopResult SimulateTrailingStop(
             TickData entryTick,
             List<TickData> futureTicks,
             double activationPips,
             double distancePips,
+            double stopLossPips,      // NEW: hard Stop Loss in pips (0 or less => disabled)
             bool isLong)
         {
+            // NOTE: This uses 0.0001 as pip value. If you support JPY or fractional pips,
+            // make this instrument-aware (e.g., pass in pipSize).
+            const double PIP = 0.0001;
+
             double entryPrice = (double)(isLong ? entryTick.Ask : entryTick.Bid);
-            double activationDistance = activationPips * 0.0001;
-            double trailDistance = distancePips * 0.0001;
+            double activationDistance = activationPips * PIP;
+            double trailDistance = distancePips * PIP;
+            double stopLossDistance = Math.Max(0.0, stopLossPips) * PIP; // <=0 disables SL
             double takeProfitDistance = activationDistance * DEFAULT_TAKE_PROFIT_MULTIPLIER;
 
+            // Compute absolute Stop Loss price if enabled
+            bool stopLossEnabled = stopLossDistance > 0.0;
+            double stopLossPrice = stopLossEnabled
+                ? (isLong ? entryPrice - stopLossDistance : entryPrice + stopLossDistance)
+                : 0.0;
+
             bool trailingActivated = false;
-            double trailingStop = 0;
-            double maxFavorableExcursion = 0;
-            double maxAdverseExcursion = 0;
-            double exitPrice = 0;
+            double trailingStop = 0.0;
+            double maxFavorableExcursion = 0.0;
+            double maxAdverseExcursion = 0.0;
+            double exitPrice = 0.0;
             int exitTick = -1;
             string exitReason = "TimeLimit";
 
             for (int i = 0; i < futureTicks.Count; i++)
             {
                 var tick = futureTicks[i];
-                double currentPrice = (double)(isLong ? tick.Bid : tick.Ask);
-                double priceMove = isLong ?
-                    currentPrice - entryPrice :
-                    entryPrice - currentPrice;
 
-                if (priceMove > 0)
+                // Use same side as your original for P&L: long -> Bid, short -> Ask
+                double currentPrice = (double)(isLong ? tick.Bid : tick.Ask);
+                double priceMove = isLong ? (currentPrice - entryPrice)
+                                             : (entryPrice - currentPrice);
+
+                // Track MFE/MAE in price units
+                if (priceMove >= 0)
                     maxFavorableExcursion = Math.Max(maxFavorableExcursion, priceMove);
                 else
                     maxAdverseExcursion = Math.Max(maxAdverseExcursion, Math.Abs(priceMove));
 
+                // --- Exit checks (priority order) ---
+
+                // 1) Hard Stop Loss (if enabled): exit as soon as price crosses SL level
+                if (stopLossEnabled)
+                {
+                    bool hitSL = isLong ? (currentPrice <= stopLossPrice)
+                                        : (currentPrice >= stopLossPrice);
+                    if (hitSL)
+                    {
+                        exitPrice = stopLossPrice; // assume fill at stop level
+                        exitTick = i;
+                        exitReason = "StopLoss";
+                        break;
+                    }
+                }
+
+                // 2) Take Profit (based on activation distance * multiplier from entry)
                 if (priceMove >= takeProfitDistance)
                 {
                     exitPrice = currentPrice;
@@ -89,14 +165,15 @@ namespace ForexFeatureGenerator.Label
                     break;
                 }
 
+                // 3) Trailing stop logic (activation first, then trail)
                 if (!trailingActivated)
                 {
                     if (priceMove >= activationDistance)
                     {
                         trailingActivated = true;
-                        trailingStop = isLong ?
-                            currentPrice - trailDistance :
-                            currentPrice + trailDistance;
+                        trailingStop = isLong
+                            ? currentPrice - trailDistance
+                            : currentPrice + trailDistance;
                     }
                 }
                 else
@@ -129,6 +206,7 @@ namespace ForexFeatureGenerator.Label
                     }
                 }
 
+                // 4) Time limit
                 if (i >= MAX_TIME_LIMIT_TICKS)
                 {
                     exitPrice = currentPrice;
@@ -138,20 +216,23 @@ namespace ForexFeatureGenerator.Label
                 }
             }
 
+            // If no exit triggered, close at last tick
             if (exitTick < 0)
             {
                 var lastTick = futureTicks.Last();
                 exitPrice = (double)(isLong ? lastTick.Bid : lastTick.Ask);
                 exitTick = futureTicks.Count - 1;
+                exitReason = "TimeLimit";
             }
 
-            double profitPips = (isLong ? exitPrice - entryPrice : entryPrice - exitPrice) * 10000;
+            // Convert P&L and excursions to pips
+            double profitPips = (isLong ? (exitPrice - entryPrice) : (entryPrice - exitPrice)) / PIP;
 
             return new TrailingStopResult
             {
                 ProfitPips = profitPips,
-                MaxFavorableExcursionPips = maxFavorableExcursion * 10000,
-                MaxAdverseExcursionPips = maxAdverseExcursion * 10000,
+                MaxFavorableExcursionPips = maxFavorableExcursion / PIP,
+                MaxAdverseExcursionPips = maxAdverseExcursion / PIP,
                 TimeToExit = exitTick,
                 ExitReason = exitReason,
                 TrailingActivated = trailingActivated
