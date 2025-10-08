@@ -124,25 +124,15 @@ namespace ForexFeatureGenerator
                 issues.Add($"Extreme spread detected: {maxSpread * 10000:F2} pips");
             }
 
-            // Check for time gaps
-            for (int i = 1; i < Math.Min(ticks.Count, 1000); i++)
-            {
-                if (ticks[i].Timestamp < ticks[i - 1].Timestamp)
-                {
-                    issues.Add($"Time ordering issue at index {i}");
-                }
-            }
-
             // Check data density
             if (ticks.Count > 1)
             {
-                var totalTime = ticks.Last().Timestamp - ticks.First().Timestamp;
-                var avgTicksPerMinute = ticks.Count / Math.Max(totalTime.TotalMinutes, 1);
-                Log($"  Data Density: {avgTicksPerMinute:F1} ticks/minute");
-
-                if (avgTicksPerMinute < 1)
+                for (int i = 1; i < ticks.Count; i++)
                 {
-                    issues.Add("Low data density (< 1 tick/minute)");
+                    if (ticks[i].Timestamp < ticks[i - 1].Timestamp)
+                    {
+                        issues.Add($"Time ordering issue at index {i}");
+                    }
                 }
             }
 
