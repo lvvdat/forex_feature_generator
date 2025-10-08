@@ -600,7 +600,6 @@ namespace ForexFeatureGenerator.Normalization
                 "fg2_of_price_impact",
                 "fg2_liquidity_effective_tick",
                 "fg2_liquidity_price_impact",
-                "fg2_liquidity_tightness",
                 "fg2_liquidity_price_efficiency",
                 "fg2_liquidity_price_dispersion"
             });
@@ -697,7 +696,6 @@ namespace ForexFeatureGenerator.Normalization
                 "fg2_liquidity_volume_concentration",
                 "fg2_liquidity_volume_dispersion",
                 "fg2_liquidity_relative_volume",
-                "fg2_liquidity_depth_proxy"
             });
 
             // Tick-based features (count data, often skewed)

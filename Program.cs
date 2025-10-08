@@ -247,7 +247,7 @@ namespace ForexFeatureGenerator
                             {
                                 if (barsProcessed > warmupBars)
                                 {
-                                    if (features.Features.Count != 192)
+                                    if (features.Features.Count != 188)
                                     {
                                         Log($"  ⚠️ Unexpected feature count: {features.Features.Count} at bar {barsProcessed}", ConsoleColor.Yellow);
                                         Log(string.Join(",", features.Features.Keys));
@@ -377,7 +377,7 @@ namespace ForexFeatureGenerator
             pipeline.RegisterCalculator(new M5VolumeFeatures());
             pipeline.RegisterCalculator(new M5OscillatorFeatures());
 
-            Log($"  ✓ Registered {14} features");
+            Log($"  ✓ Registered {pipeline.CalculatorsCount} calculators");
         }
 
         static void AnalyzeGeneratedLabels(List<LabelResult> labels)

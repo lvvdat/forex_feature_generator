@@ -419,7 +419,7 @@ namespace ForexFeatureGenerator.Integration
             var logMessage = $"[{timestamp}] {message}";
 
             Console.ForegroundColor = color;
-            Log(message);
+            Console.WriteLine(message);
             Console.ResetColor();
 
             _logWriter?.WriteLine(logMessage);

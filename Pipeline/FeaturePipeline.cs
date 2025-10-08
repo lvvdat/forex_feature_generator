@@ -10,6 +10,8 @@ namespace ForexFeatureGenerator.Pipeline
         private readonly List<IFeatureCalculator> _calculators = new();
         private readonly FeatureConfiguration _config;
 
+        public int CalculatorsCount => _calculators.Count(c => c.IsEnabled);
+
         public FeaturePipeline(FeatureConfiguration config)
         {
             _config = config;

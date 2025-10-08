@@ -135,8 +135,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // Effective tick (price move per tick)
-            var effectiveTick = bar.TickVolume > 0 ?
-                (double)(bar.High - bar.Low) / bar.TickVolume * 10000 : 0;
+            var effectiveTick = bar.TickVolume > 0 ? (double)((bar.High - bar.Low) / bar.TickVolume) * 10000 : 0;
             output.AddFeature("fg2_liquidity_effective_tick", effectiveTick);
 
             // Price impact (simplified Kyle's lambda)
@@ -148,10 +147,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // ===== MARKET DEPTH PROXIES =====
-
-            // Depth proxy (based on spread and volume)
-            var depthProxy = bar.TickVolume / Math.Max(0.0001, (double)bar.AvgSpread * 10000);
-            output.AddFeature("fg2_liquidity_depth_proxy", Math.Log(1 + depthProxy));
 
             // Resilience (how quickly price recovers)
             if (currentIndex >= 5)
@@ -173,10 +168,6 @@ namespace ForexFeatureGenerator.Features.Advanced
                 }
                 output.AddFeature("fg2_liquidity_resilience", recovered);
             }
-
-            // Tightness (relative spread)
-            var tightness = SafeDiv((double)bar.AvgSpread, close) * 10000;
-            output.AddFeature("fg2_liquidity_tightness", tightness);
 
             // ===== ADVANCED LIQUIDITY MEASURES =====
 
