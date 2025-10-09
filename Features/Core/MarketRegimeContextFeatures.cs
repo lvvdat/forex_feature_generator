@@ -100,20 +100,6 @@ namespace ForexFeatureGenerator.Features.Core
 
             var bar = bars[currentIndex];
 
-            // Intraday patterns (hour of day effects)
-            var hourOfDay = bar.Timestamp.Hour;
-            var sessionType = GetTradingSession(hourOfDay);
-            output.AddFeature("session_type", sessionType);
-
-            // Session-specific volatility
-            var sessionVol = CalculateSessionVolatility(hourOfDay, bars, currentIndex);
-            output.AddFeature("session_volatility_ratio", sessionVol);
-
-            // Day of week effects
-            var dayOfWeek = (int)bar.Timestamp.DayOfWeek;
-            var dayEffect = CalculateDayOfWeekEffect(dayOfWeek, bars, currentIndex);
-            output.AddFeature("day_effect", dayEffect);
-
             // Cyclical components (simplified)
             var cyclicalPhase = CalculateCyclicalPhase(bars, currentIndex);
             output.AddFeature("cyclical_phase", cyclicalPhase);
@@ -448,35 +434,6 @@ namespace ForexFeatureGenerator.Features.Core
         }
 
         // ===== TIME & SEASONAL METHODS =====
-
-        private double GetTradingSession(int hour)
-        {
-            // Asian: 0-8, London: 8-16, NY: 13-22, Overlap: 13-16
-            if (hour >= 13 && hour <= 16) return 2.0;  // London-NY overlap (high activity)
-            if (hour >= 8 && hour <= 22) return 1.0;   // Major sessions
-            return 0.0;  // Asian session
-        }
-
-        private double CalculateSessionVolatility(int hour, IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Compare current volatility to typical for this session
-            var currentVol = CalculateRealizedVolatility(bars, currentIndex, 10);
-
-            // Typical session volatility (simplified)
-            var typicalVol = hour >= 13 && hour <= 16 ? 0.001 :  // High during overlap
-                            hour >= 8 && hour <= 22 ? 0.0007 :   // Normal during major sessions
-                            0.0004;  // Low during Asian
-
-            return SafeDiv(currentVol, typicalVol) - 1;  // Ratio to typical
-        }
-
-        private double CalculateDayOfWeekEffect(int dayOfWeek, IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Monday/Friday effects
-            if (dayOfWeek == 1) return -0.2;  // Monday: cautious
-            if (dayOfWeek == 5) return 0.2;   // Friday: position closing
-            return 0;
-        }
 
         private double CalculateCyclicalPhase(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {

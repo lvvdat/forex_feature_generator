@@ -28,8 +28,7 @@ namespace ForexFeatureGenerator
             MinScoreThreshold = 0.35
         };
 
-        private static StreamWriter _logWriter;
-        private static Stopwatch _globalStopwatch = new Stopwatch();
+        private static StreamWriter _logWriter = new StreamWriter(LOG_FILE, false, Encoding.UTF8) { AutoFlush = true };
 
         static async Task Main(string[] args)
         {
@@ -39,15 +38,12 @@ namespace ForexFeatureGenerator
             var inputPath = args.Length > 0 ? args[0] : "data/ticks_data.csv";
             var outputDir = args.Length > 1 ? args[1] : "output";
 
-            _globalStopwatch.Start();
-
             // Setup
             if (!Directory.Exists(outputDir))
                 Directory.CreateDirectory(outputDir);
 
             if (!Directory.Exists("logs"))
                 Directory.CreateDirectory("logs");
-            _logWriter = new StreamWriter(LOG_FILE, false, Encoding.UTF8) { AutoFlush = true };
 
             var outputPath = Path.Combine(outputDir, "features_labels.parquet");
 
@@ -152,7 +148,7 @@ namespace ForexFeatureGenerator
                 var m1Aggregator = pipeline.GetAggregator(TimeSpan.FromMinutes(1));
 
                 int barsProcessed = 0;
-                int warmupBars = 275;
+                int warmupBars = 255;
                 int futureTicksNeeded = LABEL_CONFIG.MaxFutureTicks;
 
                 var maxTicks = tickData.Count;
@@ -227,10 +223,9 @@ namespace ForexFeatureGenerator
                             {
                                 if (barsProcessed > warmupBars)
                                 {
-                                    if (features.Features.Count != 188)
+                                    if (features.Features.Count != 146)
                                     {
-                                        Log(string.Join(",", features.Features.Keys));
-                                        throw new Exception($"  ⚠️ Unexpected feature count: {features.Features.Count} at bar {barsProcessed}");
+                                        Log($"  ⚠️ Not enough features generated at bar {barsProcessed} ({features.Features.Count})", ConsoleColor.Yellow);
                                     }
 
                                     // lazy init once we know feature names

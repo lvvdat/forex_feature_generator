@@ -147,7 +147,7 @@ namespace ForexFeatureGenerator.Features.Pipeline
             ApplyNonLinearTransformations(features);
 
             // 4. Feature selection based on importance
-            SelectImportantFeatures(features);
+            //SelectImportantFeatures(features);
         }
 
         /// <summary>
@@ -184,6 +184,10 @@ namespace ForexFeatureGenerator.Features.Pipeline
             {
                 features.AddFeature("interaction_momentum_flow", momentum * flowImbalance);
             }
+            else
+            {
+                features.AddFeature("interaction_momentum_flow", 0.0);
+            }
 
             // Trend × Volatility interaction
             if (features.TryGetFeature("trend_mtf_strength", out var trendStrength) &&
@@ -191,12 +195,20 @@ namespace ForexFeatureGenerator.Features.Pipeline
             {
                 features.AddFeature("interaction_trend_volatility", trendStrength * (1 - Math.Abs(volRegime)));
             }
+            else
+            {
+                features.AddFeature("interaction_trend_volatility", 0.0);
+            }
 
             // Technical × Microstructure interaction
             if (features.TryGetFeature("tech_master_signal", out var techSignal) &&
                 features.TryGetFeature("micro_master_signal", out var microSignal))
             {
                 features.AddFeature("interaction_tech_micro", (techSignal + microSignal) / 2);
+            }
+            else
+            {
+                features.AddFeature("interaction_tech_micro", 0.0);
             }
 
             // Regime × Direction interaction
@@ -208,6 +220,10 @@ namespace ForexFeatureGenerator.Features.Pipeline
                                     regime == 0 ? direction * -0.5 :  // Range: fade
                                     direction * 0.8;                   // Volatile: reduce
                 features.AddFeature("interaction_regime_direction", Math.Max(-1, Math.Min(1, regimeAdjusted)));
+            }
+            else
+            {
+                features.AddFeature("interaction_regime_direction", 0.0);
             }
         }
 
@@ -226,6 +242,12 @@ namespace ForexFeatureGenerator.Features.Pipeline
                     features.AddFeature($"{key}_squared", value * value);
                     features.AddFeature($"{key}_cubed", value * value * value);
                 }
+                else
+                {
+                    features.AddFeature($"{key}_squared", 0.0);
+                    features.AddFeature($"{key}_cubed", 0.0);
+                }
+
             }
 
             // Log transformations for volume features
@@ -238,6 +260,10 @@ namespace ForexFeatureGenerator.Features.Pipeline
                 if (feature.Value > 0)
                 {
                     features.AddFeature($"{feature.Key}_log", Math.Log(1 + feature.Value));
+                }
+                else
+                {
+                    features.AddFeature($"{feature.Key}_log", 0.0);
                 }
             }
         }
@@ -285,6 +311,11 @@ namespace ForexFeatureGenerator.Features.Pipeline
                 // Signal strength (average absolute value)
                 var strength = signals.Select(Math.Abs).Average();
                 features.AddFeature("meta_signal_strength", strength);
+            }
+            else
+            {
+                features.AddFeature("meta_signal_agreement", 0.0);
+                features.AddFeature("meta_signal_strength", 0.0);
             }
 
             // Feature quality score
@@ -352,7 +383,7 @@ namespace ForexFeatureGenerator.Features.Pipeline
             return MarketState.Normal;
         }
 
-        public IBarAggregator GetAggregator(TimeSpan timeframe)
+        public IBarAggregator? GetAggregator(TimeSpan timeframe)
         {
             return _aggregators.TryGetValue(timeframe, out var aggregator) ? aggregator : null;
         }
@@ -493,7 +524,7 @@ namespace ForexFeatureGenerator.Features.Pipeline
             }
         }
 
-        public RunningStats GetFeatureStats(string feature)
+        public RunningStats? GetFeatureStats(string feature)
         {
             return _stats.GetValueOrDefault(feature);
         }

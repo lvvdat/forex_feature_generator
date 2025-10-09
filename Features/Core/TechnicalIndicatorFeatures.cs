@@ -48,6 +48,10 @@ namespace ForexFeatureGenerator.Features.Core
                 var rsiMomentum = (rsi14 - _rsiHistory[4]) / 5;
                 output.AddFeature("tech_rsi_momentum", Sigmoid(rsiMomentum / 10));
             }
+            else
+            {
+                output.AddFeature("tech_rsi_momentum", 0.0);
+            }
 
             // Multi-timeframe RSI composite
             var rsi9 = CalculateRSI(bars, currentIndex, 9);
@@ -87,8 +91,7 @@ namespace ForexFeatureGenerator.Features.Core
             output.AddFeature("tech_stoch_normalized", stochNormalized);
 
             // Stochastic cross signal
-            var stochCross = stochK > stochD && stochK > 20 && stochK < 80 ?
-                            Math.Sign(stochK - 50) : 0;
+            var stochCross = stochK > stochD && stochK > 20 && stochK < 80 ? Math.Sign(stochK - 50) : 0;
             output.AddFeature("tech_stoch_cross", stochCross);
 
             // Stochastic divergence

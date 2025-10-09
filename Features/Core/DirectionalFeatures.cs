@@ -136,8 +136,7 @@ namespace ForexFeatureGenerator.Features.Core
             output.AddFeature("dir_composite_confirmation", confirmationComposite);
 
             // Final directional probability
-            var directionalProb = CalculateDirectionalProbability(
-                primaryComposite, confirmationComposite, trendStrength);
+            var directionalProb = CalculateDirectionalProbability(primaryComposite, confirmationComposite, trendStrength);
             output.AddFeature("dir_probability", directionalProb);
 
             // Signal confidence score
