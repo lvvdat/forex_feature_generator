@@ -176,29 +176,9 @@ namespace ForexFeatureGenerator.Features.M5
             }
         }
 
-        private double CalculatePriceSlope(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            var x = Enumerable.Range(0, period).Select(i => (double)i).ToArray();
-            var y = new double[period];
-
-            for (int i = 0; i < period; i++)
-            {
-                y[i] = (double)bars[currentIndex - period + 1 + i].Close;
-            }
-
-            var n = period;
-            var sumX = x.Sum();
-            var sumY = y.Sum();
-            var sumXY = x.Zip(y, (a, b) => a * b).Sum();
-            var sumX2 = x.Select(a => a * a).Sum();
-
-            return SafeDiv(n * sumXY - sumX * sumY, n * sumX2 - sumX * sumX);
-        }
-
         public override void Reset()
         {
             _slopes.Clear();
         }
     }
-
 }

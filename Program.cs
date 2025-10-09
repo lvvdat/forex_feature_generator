@@ -239,9 +239,8 @@ namespace ForexFeatureGenerator
                                 {
                                     if (features.Features.Count != 188)
                                     {
-                                        Log($"  ⚠️ Unexpected feature count: {features.Features.Count} at bar {barsProcessed}", ConsoleColor.Yellow);
                                         Log(string.Join(",", features.Features.Keys));
-                                        continue;
+                                        throw new Exception($"  ⚠️ Unexpected feature count: {features.Features.Count} at bar {barsProcessed}");
                                     }
 
                                     // lazy init once we know feature names

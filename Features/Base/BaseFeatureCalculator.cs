@@ -125,8 +125,8 @@ namespace ForexFeatureGenerator.Features.Base
         {
             // --- Validate inputs ---
             if (bars == null || bars.Count == 0) return (50, 50);
-            if (period <= 0) period = 14;          // sensible default
-            if (smoothK <= 0) smoothK = 1;         // 1 => no smoothing of %K
+            if (period <= 0) period = 14;           // sensible default
+            if (smoothK <= 0) smoothK = 1;          // 1 => no smoothing of %K
             const int dPeriod = 3;                  // standard %D = 3-SMA of %K
 
             // Earliest index needed to compute %D of smoothed %K at currentIndex:
@@ -184,6 +184,105 @@ namespace ForexFeatureGenerator.Features.Base
             d = Math.Min(100.0, Math.Max(0.0, d));
 
             return (k, d);
+        }
+
+        protected double CalculateRSI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
+        {
+            if (currentIndex < period) return 50;
+
+            double gains = 0;
+            double losses = 0;
+
+            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
+            {
+                var change = (double)(bars[i].Close - bars[i - 1].Close);
+                if (change > 0)
+                    gains += change;
+                else
+                    losses += Math.Abs(change);
+            }
+
+            var avgGain = gains / period;
+            var avgLoss = losses / period;
+
+            if (avgLoss < 1e-10) return 100;
+
+            var rs = avgGain / avgLoss;
+            return 100 - (100 / (1 + rs));
+        }
+
+        protected (double up, double down) CalculateAroon(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
+        {
+            if (currentIndex < period) return (50, 50);
+
+            int daysSinceHigh = 0;
+            int daysSinceLow = 0;
+            double highestHigh = double.MinValue;
+            double lowestLow = double.MaxValue;
+
+            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
+            {
+                var high = (double)bars[i].High;
+                var low = (double)bars[i].Low;
+
+                if (high >= highestHigh)
+                {
+                    highestHigh = high;
+                    daysSinceHigh = currentIndex - i;
+                }
+
+                if (low <= lowestLow)
+                {
+                    lowestLow = low;
+                    daysSinceLow = currentIndex - i;
+                }
+            }
+
+            var aroonUp = ((double)(period - daysSinceHigh) / period) * 100;
+            var aroonDown = ((double)(period - daysSinceLow) / period) * 100;
+
+            return (aroonUp, aroonDown);
+        }
+
+        protected double CalculateCCI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
+        {
+            if (currentIndex < period) return 0;
+
+            // Calculate typical prices
+            var typicalPrices = new double[period];
+            for (int i = 0; i < period; i++)
+            {
+                var idx = currentIndex - period + 1 + i;
+                typicalPrices[i] = (double)bars[idx].TypicalPrice;
+            }
+
+            var sma = typicalPrices.Average();
+            var meanDeviation = typicalPrices.Select(tp => Math.Abs(tp - sma)).Average();
+
+            var currentTP = (double)bars[currentIndex].TypicalPrice;
+
+            if (meanDeviation < 1e-10) return 0;
+
+            return (currentTP - sma) / (0.015 * meanDeviation);
+        }
+
+        protected double CalculatePriceSlope(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
+        {
+            var x = Enumerable.Range(0, period).Select(i => (double)i).ToArray();
+            var y = new double[period];
+
+            for (int i = 0; i < period; i++)
+            {
+                y[i] = (double)bars[currentIndex - period + 1 + i].Close;
+            }
+
+            var n = period;
+            var sumX = x.Sum();
+            var sumY = y.Sum();
+            var sumXY = x.Zip(y, (a, b) => a * b).Sum();
+            var sumX2 = x.Select(a => a * a).Sum();
+
+            return SafeDiv(n * sumXY - sumX * sumY, n * sumX2 - sumX * sumX);
         }
     }
 }

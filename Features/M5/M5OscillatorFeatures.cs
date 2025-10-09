@@ -38,31 +38,5 @@ namespace ForexFeatureGenerator.Features.M5
             var bbPosition = SafeDiv(close - bbLower, bbUpper - bbLower);
             output.AddFeature("fg3_bb_position", bbPosition);
         }
-
-        private double CalculateRSI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period) return 50;
-
-            double gains = 0;
-            double losses = 0;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var change = (double)(bars[i].Close - bars[i - 1].Close);
-                if (change > 0)
-                    gains += change;
-                else
-                    losses += Math.Abs(change);
-            }
-
-            var avgGain = gains / period;
-            var avgLoss = losses / period;
-
-            if (avgLoss < 1e-10) return 100;
-
-            var rs = avgGain / avgLoss;
-            return 100 - (100 / (1 + rs));
-        }
     }
-
 }
