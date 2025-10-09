@@ -6,7 +6,6 @@ using Parquet.Data;
 using Parquet.Schema;
 
 using ForexFeatureGenerator.Core.Models;
-using ForexFeatureGenerator.Integration;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
 using ForexFeatureGenerator.Utilities;
@@ -37,7 +36,7 @@ namespace ForexFeatureGenerator
             Console.OutputEncoding = Encoding.UTF8;
             Console.InputEncoding = Encoding.UTF8;
 
-            var inputPath = args.Length > 0 ? args[0] : "D:\\Projects\\NexusTradingSystem\\data\\raw\\test_2025_08.csv";
+            var inputPath = args.Length > 0 ? args[0] : "data/ticks_data.csv";
             var outputDir = args.Length > 1 ? args[1] : "output";
 
             _globalStopwatch.Start();
@@ -70,15 +69,7 @@ namespace ForexFeatureGenerator
             else
             {
                 Log($"Features and labels file already exists at: {outputPath}", ConsoleColor.Yellow);
-                Log("Skipping data loading and label generation phases.");
             }
-
-            Log("\nPHASE 3: FEATURE NORMALIZATION", ConsoleColor.Cyan);
-            Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
-
-            var normalizer = new NormalizerIntegration(_logWriter);
-            string normalizedPath = Path.Combine(outputDir, "features_labels_normalized.parquet");
-            await normalizer.TrainAndSaveNormalizer(outputPath, normalizedPath);
         }
 
         // ============= DATA LOADING FUNCTIONS =============

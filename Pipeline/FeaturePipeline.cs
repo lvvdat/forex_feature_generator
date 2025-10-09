@@ -31,9 +31,9 @@ namespace ForexFeatureGenerator.Features.Pipeline
             // Register multiple timeframes for comprehensive analysis
             RegisterAggregator(TimeSpan.FromMinutes(1), 1000);  // M1 - Microstructure
             RegisterAggregator(TimeSpan.FromMinutes(5), 500);   // M5 - Short-term
-            RegisterAggregator(TimeSpan.FromMinutes(15), 300);  // M15 - Medium-term
-            RegisterAggregator(TimeSpan.FromMinutes(30), 200);  // M30 - Medium-term
-            RegisterAggregator(TimeSpan.FromMinutes(60), 100);  // H1 - Long-term context
+            // RegisterAggregator(TimeSpan.FromMinutes(15), 300);  // M15 - Medium-term
+            // RegisterAggregator(TimeSpan.FromMinutes(30), 200);  // M30 - Medium-term
+            // RegisterAggregator(TimeSpan.FromMinutes(60), 100);  // H1 - Long-term context
         }
 
         /// <summary>
