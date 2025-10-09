@@ -1,187 +1,220 @@
 ﻿using ForexFeatureGenerator.Core.Models;
-using ForexFeatureGenerator.Core.Infrastructure;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace ForexFeatureGenerator.Features.Base
+namespace ForexFeatureGenerator.Features.Core
 {
-    public interface IFeatureCalculator
-    {
-        string Name { get; }
-        string Category { get; }
-        TimeSpan Timeframe { get; }
-        bool IsEnabled { get; set; }
-        int Priority { get; }
-        void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex);
-        void Reset();
-    }
-
-    public abstract class BaseCalculator : IFeatureCalculator
+    /// <summary>
+    /// Base feature calculator optimized for 3-class prediction (-1, 0, 1)
+    /// Provides common transformations and utilities for directional classification
+    /// </summary>
+    public abstract class BaseFeatureCalculator
     {
         public abstract string Name { get; }
         public abstract string Category { get; }
         public abstract TimeSpan Timeframe { get; }
+        public abstract int Priority { get; }
         public bool IsEnabled { get; set; } = true;
-        public virtual int Priority => 100;
 
-        // Rolling windows for adaptive normalization
-        protected readonly RollingWindow<double> _adaptiveWindow = new(100);
-
+        // ===== CORE CALCULATION METHOD =====
         public abstract void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex);
-        public virtual void Reset()
+        public virtual void Reset() { }
+
+        // ===== TRANSFORMATION UTILITIES FOR 3-CLASS PREDICTION =====
+
+        /// <summary>
+        /// Converts continuous value to z-score for better discrimination
+        /// Z-scores help identify extreme moves that trigger directional labels
+        /// </summary>
+        protected double CalculateZScore(double value, double mean, double stdDev)
         {
-            _adaptiveWindow.Clear();
+            if (stdDev < 1e-10) return 0;
+            return (value - mean) / stdDev;
         }
 
-        // === Core Calculation Helpers ===
+        /// <summary>
+        /// Converts value to percentile rank (0-100) for relative strength
+        /// Helps identify overbought/oversold conditions
+        /// </summary>
+        protected double CalculatePercentileRank(double value, List<double> historicalValues)
+        {
+            if (historicalValues.Count == 0) return 50;
+            var count = historicalValues.Count(v => v < value);
+            return (double)count / historicalValues.Count * 100;
+        }
 
-        protected double SafeDiv(double numerator, double denominator, double defaultValue = 0.0)
+        /// <summary>
+        /// Creates directional signal from indicator value and thresholds
+        /// Returns: 1 for bullish, -1 for bearish, 0 for neutral
+        /// </summary>
+        protected double CreateDirectionalSignal(double value, double bullishThreshold, double bearishThreshold)
+        {
+            if (value > bullishThreshold) return 1.0;
+            if (value < bearishThreshold) return -1.0;
+            return 0.0;
+        }
+
+        /// <summary>
+        /// Calculates momentum quality - how consistent the move is
+        /// Higher quality = more likely to continue in direction
+        /// </summary>
+        protected double CalculateMomentumQuality(IReadOnlyList<double> values)
+        {
+            if (values.Count < 2) return 0;
+
+            int consistentMoves = 0;
+            for (int i = 1; i < values.Count; i++)
+            {
+                if (Math.Sign(values[i] - values[i - 1]) == Math.Sign(values[0] - values[1]))
+                    consistentMoves++;
+            }
+
+            return (double)consistentMoves / (values.Count - 1);
+        }
+
+        /// <summary>
+        /// Detects divergence between price and indicator
+        /// Critical for identifying potential reversals
+        /// </summary>
+        protected double CalculateDivergence(double[] prices, double[] indicator, int lookback = 10)
+        {
+            if (prices.Length < lookback || indicator.Length < lookback) return 0;
+
+            // Calculate slopes
+            var priceSlope = CalculateSlope(prices.TakeLast(lookback).ToArray());
+            var indicatorSlope = CalculateSlope(indicator.TakeLast(lookback).ToArray());
+
+            // Bullish divergence: price down, indicator up
+            if (priceSlope < -0.0001 && indicatorSlope > 0.0001) return 1.0;
+
+            // Bearish divergence: price up, indicator down
+            if (priceSlope > 0.0001 && indicatorSlope < -0.0001) return -1.0;
+
+            return 0.0;
+        }
+
+        /// <summary>
+        /// Calculates normalized distance from support/resistance
+        /// Helps predict bounces or breakouts
+        /// </summary>
+        protected double CalculateNormalizedDistance(double price, double level, double atr)
+        {
+            if (atr < 1e-10) return 0;
+            return (price - level) / atr;
+        }
+
+        /// <summary>
+        /// Creates composite signal from multiple indicators
+        /// Weighted voting for more robust predictions
+        /// </summary>
+        protected double CreateCompositeSignal(params (double signal, double weight)[] signals)
+        {
+            double weightedSum = 0;
+            double totalWeight = 0;
+
+            foreach (var (signal, weight) in signals)
+            {
+                weightedSum += signal * weight;
+                totalWeight += weight;
+            }
+
+            if (totalWeight < 1e-10) return 0;
+
+            var composite = weightedSum / totalWeight;
+
+            // Apply thresholds for clear signals
+            if (composite > 0.5) return 1.0;
+            if (composite < -0.5) return -1.0;
+            return 0.0;
+        }
+
+        /// <summary>
+        /// Calculates market regime for context-aware features
+        /// Different regimes require different feature interpretations
+        /// </summary>
+        protected int DetectMarketRegime(double volatility, double trendStrength, double volume)
+        {
+            // 0: Range, 1: Trending, 2: Volatile/News
+            if (volatility > 1.5) return 2;  // High volatility regime
+            if (trendStrength > 0.7) return 1;  // Trending regime
+            return 0;  // Range-bound regime
+        }
+
+        /// <summary>
+        /// Safe division preventing NaN/Infinity
+        /// </summary>
+        protected double SafeDiv(double numerator, double denominator, double defaultValue = 0)
         {
             if (Math.Abs(denominator) < 1e-10) return defaultValue;
             var result = numerator / denominator;
             return double.IsNaN(result) || double.IsInfinity(result) ? defaultValue : result;
         }
 
-        // Adaptive Z-score normalization
-        protected double AdaptiveZScore(double value, double windowMean, double windowStd)
-        {
-            if (windowStd < 1e-10) return 0;
-            var zScore = (value - windowMean) / windowStd;
-            // Clip to [-3, 3] range for stability
-            return Math.Max(-3, Math.Min(3, zScore));
-        }
-
-        // Rank transformation (percentile in rolling window)
-        protected double RankTransform(double value, List<double> window)
-        {
-            if (window.Count == 0) return 0.5;
-            int rank = window.Count(v => v < value);
-            return (double)rank / window.Count;
-        }
-
-        // Sigmoid transformation for bounded output
-        protected double Sigmoid(double x, double scale = 1.0)
-        {
-            return 1.0 / (1.0 + Math.Exp(-x * scale));
-        }
-
-        // === Technical Indicators ===
-
-        protected double EMA(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period - 1 || period <= 0) return 0;
-
-            var multiplier = 2.0 / (period + 1);
-
-            // Initialize with SMA
-            double ema = 0;
-            int startIdx = currentIndex - period + 1;
-            for (int i = 0; i < period; i++)
-            {
-                ema += (double)bars[startIdx + i].Close;
-            }
-            ema /= period;
-
-            // Apply EMA calculation for any remaining bars
-            for (int i = startIdx + period; i <= currentIndex; i++)
-            {
-                ema = ((double)bars[i].Close - ema) * multiplier + ema;
-            }
-
-            return ema;
-        }
-
-        protected double SMA(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period - 1) return 0;
-
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                sum += (double)bars[i].Close;
-            }
-            return sum / period;
-        }
-
-        protected double StdDev(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period - 1) return 0;
-
-            var mean = SMA(bars, period, currentIndex);
-            double sumSquares = 0;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var diff = (double)bars[i].Close - mean;
-                sumSquares += diff * diff;
-            }
-
-            return Math.Sqrt(sumSquares / period);
-        }
-
-        protected double ATR(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period) return 0;
-
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                sum += TrueRange(bars, i);
-            }
-
-            return sum / period;
-        }
-
-        protected double TrueRange(IReadOnlyList<OhlcBar> bars, int index)
-        {
-            if (index < 1) return (double)(bars[index].High - bars[index].Low);
-
-            var high = (double)bars[index].High;
-            var low = (double)bars[index].Low;
-            var prevClose = (double)bars[index - 1].Close;
-
-            return Math.Max(high - low, Math.Max(Math.Abs(high - prevClose), Math.Abs(low - prevClose)));
-        }
-
-        protected double RSI(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period) return 50;
-
-            double gains = 0;
-            double losses = 0;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var change = (double)(bars[i].Close - bars[i - 1].Close);
-                if (change > 0)
-                    gains += change;
-                else
-                    losses += Math.Abs(change);
-            }
-
-            if (losses < 1e-10) return 100;
-
-            var rs = gains / losses;
-            return 100 - (100 / (1 + rs));
-        }
-
-        // Linear regression slope
+        /// <summary>
+        /// Calculates linear regression slope for trend detection
+        /// </summary>
         protected double CalculateSlope(double[] values)
         {
-            int n = values.Length;
-            if (n < 2) return 0;
+            if (values.Length < 2) return 0;
 
-            double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-            for (int i = 0; i < n; i++)
-            {
-                sumX += i;
-                sumY += values[i];
-                sumXY += i * values[i];
-                sumX2 += i * i;
-            }
+            var n = values.Length;
+            var xValues = Enumerable.Range(0, n).Select(i => (double)i).ToArray();
+
+            var sumX = xValues.Sum();
+            var sumY = values.Sum();
+            var sumXY = xValues.Zip(values, (x, y) => x * y).Sum();
+            var sumX2 = xValues.Sum(x => x * x);
 
             return SafeDiv(n * sumXY - sumX * sumY, n * sumX2 - sumX * sumX);
+        }
+
+        /// <summary>
+        /// Calculates adaptive moving average for dynamic markets
+        /// </summary>
+        protected double CalculateAdaptiveMA(IReadOnlyList<OhlcBar> bars, int currentIndex,
+            int fastPeriod = 5, int slowPeriod = 20)
+        {
+            if (currentIndex < slowPeriod) return (double)bars[currentIndex].Close;
+
+            // Calculate efficiency ratio
+            var direction = Math.Abs((double)(bars[currentIndex].Close - bars[currentIndex - slowPeriod].Close));
+            var volatility = 0.0;
+
+            for (int i = currentIndex - slowPeriod + 1; i <= currentIndex; i++)
+            {
+                volatility += Math.Abs((double)(bars[i].Close - bars[i - 1].Close));
+            }
+
+            var efficiencyRatio = SafeDiv(direction, volatility, 0.5);
+
+            // Calculate smoothing constant
+            var fastSC = 2.0 / (fastPeriod + 1);
+            var slowSC = 2.0 / (slowPeriod + 1);
+            var sc = Math.Pow(efficiencyRatio * (fastSC - slowSC) + slowSC, 2);
+
+            // Calculate AMA
+            double ama = (double)bars[currentIndex - slowPeriod].Close;
+            for (int i = currentIndex - slowPeriod + 1; i <= currentIndex; i++)
+            {
+                ama = ama + sc * ((double)bars[i].Close - ama);
+            }
+
+            return ama;
+        }
+
+        /// <summary>
+        /// Normalizes feature to [-1, 1] range for better model training
+        /// </summary>
+        protected double NormalizeToRange(double value, double min, double max)
+        {
+            if (max - min < 1e-10) return 0;
+            return 2 * (value - min) / (max - min) - 1;
+        }
+
+        /// <summary>
+        /// Applies sigmoid transformation for probability-like features
+        /// </summary>
+        protected double Sigmoid(double x, double steepness = 1.0)
+        {
+            return 2.0 / (1.0 + Math.Exp(-steepness * x)) - 1.0;
         }
     }
 }

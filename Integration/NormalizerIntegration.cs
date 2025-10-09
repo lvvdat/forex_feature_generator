@@ -1,4 +1,5 @@
 ﻿using ForexFeatureGenerator.Core.Models;
+using ForexFeatureGenerator.Features.Pipeline;
 using ForexFeatureGenerator.Normalization;
 using ForexFeatureGenerator.Pipeline;
 using Parquet;

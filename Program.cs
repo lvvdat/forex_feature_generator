@@ -1,18 +1,16 @@
-﻿using ForexFeatureGenerator.Core.Models;
-using ForexFeatureGenerator.Features.Core;
-using ForexFeatureGenerator.Features.Cross;
-using ForexFeatureGenerator.Features.ML;
-using ForexFeatureGenerator.Features.Pattern;
+﻿using System.Text;
+using System.Diagnostics;
+
+using Parquet;
+using Parquet.Data;
+using Parquet.Schema;
+
+using ForexFeatureGenerator.Core.Models;
 using ForexFeatureGenerator.Integration;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
 using ForexFeatureGenerator.Utilities;
-using Parquet;
-using Parquet.Data;
-using Parquet.Schema;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
+using ForexFeatureGenerator.Features.Pipeline;
 
 namespace ForexFeatureGenerator
 {
@@ -326,7 +324,7 @@ namespace ForexFeatureGenerator
 
         static FeaturePipeline BuildComprehensivePipeline()
         {
-            var config = FeatureConfiguration.CreateDefault();
+            var config = FeatureConfiguration.CreateOptimized3Class();
             var pipeline = new FeaturePipeline(config);
 
             // Register multiple timeframes
@@ -341,24 +339,9 @@ namespace ForexFeatureGenerator
                 pipeline.RegisterAggregator(tf, size);
             }
 
-            RegisterAllFeatureCalculators(pipeline);
-
             return pipeline;
         }
 
-        static void RegisterAllFeatureCalculators(FeaturePipeline pipeline)
-        {
-            pipeline.RegisterCalculator(new PriceActionFeatures());
-            pipeline.RegisterCalculator(new MomentumFeatures());
-            pipeline.RegisterCalculator(new VolatilityFeatures());
-            pipeline.RegisterCalculator(new MicrostructureFeatures());
-            pipeline.RegisterCalculator(new EnhancedPatternFeatures());
-            pipeline.RegisterCalculator(new EnhancedPatternFeatures());
-            pipeline.RegisterCalculator(new CrossTimeframeFeatures());
-            pipeline.RegisterCalculator(new MarketRegimeFeatures());
-
-            Log($"  ✓ Registered {pipeline.CalculatorsCount} calculators");
-        }
 
         static void AnalyzeGeneratedLabels(List<LabelResult> labels)
         {

@@ -1,42 +1,53 @@
 ﻿namespace ForexFeatureGenerator.Pipeline
 {
+    public enum FeatureSelectionMode
+    {
+        All,        // Use all features
+        Manual,     // Use manually selected features
+        Adaptive,   // Dynamically select based on importance
+        Optimized   // Use pre-optimized feature set
+    }
+
+    /// <summary>
+    /// Feature configuration optimized for 3-class prediction
+    /// </summary>
     public class FeatureConfiguration
     {
         public Dictionary<string, bool> EnabledFeatures { get; set; } = new();
+        public Dictionary<string, double> FeatureWeights { get; set; } = new();
+        public FeatureSelectionMode SelectionMode { get; set; } = FeatureSelectionMode.Adaptive;
 
-        public void EnableFeature(string calculatorName) => EnabledFeatures[calculatorName] = true;
-        public void DisableFeature(string calculatorName) => EnabledFeatures[calculatorName] = false;
-        public bool IsEnabled(string calculatorName) => EnabledFeatures.GetValueOrDefault(calculatorName, true);
-
-        public static FeatureConfiguration CreateDefault()
+        public static FeatureConfiguration CreateOptimized3Class()
         {
             return new FeatureConfiguration
             {
                 EnabledFeatures = new Dictionary<string, bool>
                 {
-                    { "M1_Microstructure", true },
-                    { "M1_Momentum", true },
-                    { "M1_Volatility", true },
-                    { "M5_Trend", true },
-                    { "M5_Oscillators", true }
-                }
+                    { "Directional", true },
+                    { "MarketRegimeContext", true },
+                    { "MicrostructureOrderFlow", true },
+                    { "TechnicalIndicators", true }
+                },
+                FeatureWeights = new Dictionary<string, double>
+                {
+                    { "dir_composite_primary", 1.5 },
+                    { "micro_flow_composite", 1.2 },
+                    { "tech_master_signal", 1.0 },
+                    { "regime_master_signal", 0.8 }
+                },
+                SelectionMode = FeatureSelectionMode.Adaptive
             };
         }
 
-        public void SaveToJson(string path)
+        public bool IsFeatureEnabled(string name)
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(this, new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(path, json);
+            return EnabledFeatures.GetValueOrDefault(name, true);
         }
 
-        public static FeatureConfiguration LoadFromJson(string path)
+        public double GetFeatureWeight(string name)
         {
-            var json = File.ReadAllText(path);
-            return System.Text.Json.JsonSerializer.Deserialize<FeatureConfiguration>(json)
-                ?? CreateDefault();
+            return FeatureWeights.GetValueOrDefault(name, 1.0);
         }
     }
+
 }

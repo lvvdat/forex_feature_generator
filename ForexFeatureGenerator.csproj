@@ -21,8 +21,4 @@
     <PackageReference Include="Parquet.Net" Version="5.2.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Core\" />
-  </ItemGroup>
-
 </Project>
