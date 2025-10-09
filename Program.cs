@@ -1,7 +1,8 @@
 ﻿using ForexFeatureGenerator.Core.Models;
-using ForexFeatureGenerator.Features.Advanced;
-using ForexFeatureGenerator.Features.M1;
-using ForexFeatureGenerator.Features.M5;
+using ForexFeatureGenerator.Features.Core;
+using ForexFeatureGenerator.Features.Cross;
+using ForexFeatureGenerator.Features.ML;
+using ForexFeatureGenerator.Features.Pattern;
 using ForexFeatureGenerator.Integration;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
@@ -347,24 +348,14 @@ namespace ForexFeatureGenerator
 
         static void RegisterAllFeatureCalculators(FeaturePipeline pipeline)
         {
-            // M1 Features
-            pipeline.RegisterCalculator(new M1MicrostructureFeatures());
-            pipeline.RegisterCalculator(new M1ComprehensiveFeatures());
-            pipeline.RegisterCalculator(new M1MomentumFeatures());
-            pipeline.RegisterCalculator(new M1VolatilityFeatures());
-
-            // Advanced Features
-            pipeline.RegisterCalculator(new OrderFlowFeatures());
+            pipeline.RegisterCalculator(new PriceActionFeatures());
+            pipeline.RegisterCalculator(new MomentumFeatures());
+            pipeline.RegisterCalculator(new VolatilityFeatures());
+            pipeline.RegisterCalculator(new MicrostructureFeatures());
+            pipeline.RegisterCalculator(new EnhancedPatternFeatures());
+            pipeline.RegisterCalculator(new EnhancedPatternFeatures());
+            pipeline.RegisterCalculator(new CrossTimeframeFeatures());
             pipeline.RegisterCalculator(new MarketRegimeFeatures());
-            pipeline.RegisterCalculator(new PatternRecognitionFeatures());
-            pipeline.RegisterCalculator(new LiquidityFeatures());
-
-            // M5 Features
-            pipeline.RegisterCalculator(new M5TrendFeatures());
-            pipeline.RegisterCalculator(new M5MomentumFeatures());
-            pipeline.RegisterCalculator(new M5VolatilityFeatures());
-            pipeline.RegisterCalculator(new M5VolumeFeatures());
-            pipeline.RegisterCalculator(new M5OscillatorFeatures());
 
             Log($"  ✓ Registered {pipeline.CalculatorsCount} calculators");
         }
