@@ -16,7 +16,6 @@ namespace ForexFeatureGenerator.Features.Core
 
         private readonly RollingWindow<double> _rsiHistory = new(50);
         private readonly RollingWindow<double> _macdHistory = new(50);
-        private readonly RollingWindow<double> _stochHistory = new(50);
 
         public override void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
@@ -33,14 +32,6 @@ namespace ForexFeatureGenerator.Features.Core
             // RSI normalized to [-1, 1] for directionality
             var rsiNormalized = (rsi14 - 50) / 50;  // -1 = oversold, 1 = overbought
             output.AddFeature("04_tech_rsi_normalized", rsiNormalized);
-
-            // RSI directional signal with dynamic thresholds
-            var rsiSignal = CreateRSIDirectionalSignal(rsi14, _rsiHistory);
-            output.AddFeature("04_tech_rsi_signal", rsiSignal);
-
-            // RSI divergence (powerful reversal signal)
-            var rsiDivergence = CalculateRSIDivergence(bars, currentIndex, rsi14);
-            output.AddFeature("04_tech_rsi_divergence", rsiDivergence);
 
             // RSI momentum (rate of change)
             if (_rsiHistory.Count >= 5)
@@ -69,34 +60,9 @@ namespace ForexFeatureGenerator.Features.Core
             var macdNormalized = SafeDiv(macdHist, atr);
             output.AddFeature("04_tech_macd_normalized", Sigmoid(macdNormalized));
 
-            // MACD cross signal (strong directional indicator)
-            var macdCross = DetectMACDCross(macdLine, macdSignal, _macdHistory);
-            output.AddFeature("04_tech_macd_cross", macdCross);
-
-            // MACD divergence
-            var macdDivergence = CalculateMACDDivergence(bars, currentIndex, macdHist);
-            output.AddFeature("04_tech_macd_divergence", macdDivergence);
-
             // MACD momentum quality
             var macdQuality = CalculateMACDQuality(_macdHistory);
             output.AddFeature("04_tech_macd_quality", macdQuality);
-
-            // ===== 3. STOCHASTIC FEATURES (TRANSFORMED) =====
-
-            var (stochK, stochD) = CalculateStochastic(bars, currentIndex, 14, 3);
-            _stochHistory.Add(stochK);
-
-            // Stochastic normalized to directional signal
-            var stochNormalized = (stochK - 50) / 50;
-            output.AddFeature("04_tech_stoch_normalized", stochNormalized);
-
-            // Stochastic cross signal
-            var stochCross = stochK > stochD && stochK > 20 && stochK < 80 ? Math.Sign(stochK - 50) : 0;
-            output.AddFeature("04_tech_stoch_cross", stochCross);
-
-            // Stochastic divergence
-            var stochDivergence = CalculateStochasticDivergence(bars, currentIndex, stochK);
-            output.AddFeature("04_tech_stoch_divergence", stochDivergence);
 
             // ===== 4. BOLLINGER BANDS FEATURES (TRANSFORMED) =====
 
@@ -109,10 +75,6 @@ namespace ForexFeatureGenerator.Features.Core
             // BB squeeze detection (volatility contraction)
             var bbSqueeze = DetectBBSqueeze(bars, currentIndex, bbWidth);
             output.AddFeature("04_tech_bb_squeeze", bbSqueeze);
-
-            // BB band touch signals
-            var bbTouch = close > bbUpper ? 1.0 : close < bbLower ? -1.0 : 0.0;
-            output.AddFeature("04_tech_bb_touch", bbTouch);
 
             // BB expansion signal (breakout potential)
             var bbExpansion = CalculateBBExpansion(bars, currentIndex, bbWidth);
@@ -127,13 +89,6 @@ namespace ForexFeatureGenerator.Features.Core
             // MA alignment signal (trend confirmation)
             var maAlignment = CalculateMAAlignment(close, ema9, ema21, ema50);
             output.AddFeature("04_tech_ma_alignment", maAlignment);
-
-            // MA cross signals
-            var maCross921 = DetectMACross(ema9, ema21, bars, currentIndex);
-            output.AddFeature("04_tech_ma_cross_9_21", maCross921);
-
-            var maCross2150 = DetectMACross(ema21, ema50, bars, currentIndex);
-            output.AddFeature("04_tech_ma_cross_21_50", maCross2150);
 
             // Price-MA deviation (mean reversion)
             var maDev9 = SafeDiv(close - ema9, atr);
@@ -158,53 +113,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Volatility percentile
             var volPercentile = CalculateVolatilityPercentile(bars, currentIndex, atr14);
             output.AddFeature("04_tech_vol_percentile", volPercentile);
-
-            // Volatility regime signal
-            var volRegime = volPercentile > 0.7 ? 1.0 :   // High volatility
-                           volPercentile < 0.3 ? -1.0 :   // Low volatility
-                           0.0;                            // Normal
-            output.AddFeature("04_tech_vol_regime", volRegime);
-
-            // ===== 7. COMPOSITE TECHNICAL SIGNALS =====
-
-            // Oscillator composite (RSI + Stochastic + MACD)
-            var oscillatorComposite = CreateCompositeSignal(
-                (rsiNormalized, 0.35),
-                (stochNormalized, 0.35),
-                (Sigmoid(macdNormalized), 0.30)
-            );
-            output.AddFeature("04_tech_oscillator_composite", oscillatorComposite);
-
-            // Trend composite (MA alignment + MACD)
-            var trendComposite = CreateCompositeSignal(
-                (maAlignment, 0.4),
-                (maCross921, 0.3),
-                (Math.Sign(macdLine), 0.3)
-            );
-            output.AddFeature("04_tech_trend_composite", trendComposite);
-
-            // Reversal composite (divergences + extremes)
-            var reversalComposite = CreateCompositeSignal(
-                (rsiDivergence, 0.3),
-                (macdDivergence, 0.3),
-                (stochDivergence, 0.2),
-                (bbTouch * -1, 0.2)  // Band touch suggests reversal
-            );
-            output.AddFeature("04_tech_reversal_composite", reversalComposite);
-
-            // Master technical signal
-            var masterSignal = CreateCompositeSignal(
-                (oscillatorComposite, 0.35),
-                (trendComposite, 0.35),
-                (reversalComposite * -0.3, 0.3)  // Reversal opposes trend
-            );
-            output.AddFeature("04_tech_master_signal", masterSignal);
-
-            // Signal confidence based on agreement
-            var signalAgreement = CalculateSignalAgreement(
-                rsiNormalized, stochNormalized, Sigmoid(macdNormalized),
-                maAlignment, bbPosition);
-            output.AddFeature("04_tech_signal_confidence", signalAgreement);
         }
 
         // ===== CALCULATION METHODS =====
@@ -227,35 +135,6 @@ namespace ForexFeatureGenerator.Features.Core
             if (avgLoss < 1e-10) return 100;
             var rs = avgGain / avgLoss;
             return 100 - (100 / (1 + rs));
-        }
-
-        private double CreateRSIDirectionalSignal(double rsi, RollingWindow<double> history)
-        {
-            // Dynamic thresholds based on recent RSI range
-            if (history.Count < 20)
-                return CreateDirectionalSignal(rsi, 70, 30);
-
-            var recentValues = history.GetValues().Take(20).ToList();
-            var percentile80 = recentValues.OrderBy(x => x).Skip(16).First();
-            var percentile20 = recentValues.OrderBy(x => x).Skip(4).First();
-
-            return CreateDirectionalSignal(rsi, percentile80, percentile20);
-        }
-
-        private double CalculateRSIDivergence(IReadOnlyList<OhlcBar> bars, int currentIndex, double currentRSI)
-        {
-            if (_rsiHistory.Count < 10) return 0;
-
-            var prices = new double[10];
-            var rsiValues = new double[10];
-
-            for (int i = 0; i < 10; i++)
-            {
-                prices[9 - i] = (double)bars[currentIndex - i].Close;
-                rsiValues[9 - i] = i < _rsiHistory.Count ? _rsiHistory[i] : currentRSI;
-            }
-
-            return CalculateDivergence(prices, rsiValues, 10);
         }
 
         private (double line, double signal, double histogram) CalculateMACD(IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -287,92 +166,12 @@ namespace ForexFeatureGenerator.Features.Core
             return macdValues.Count > 0 ? macdValues.Average() : 0;
         }
 
-        private double DetectMACDCross(double line, double signal, RollingWindow<double> history)
-        {
-            if (history.Count < 2) return 0;
-
-            var prevHist = history[1];
-            var currentHist = line - signal;
-
-            // Bullish cross
-            if (prevHist <= 0 && currentHist > 0) return 1.0;
-
-            // Bearish cross
-            if (prevHist >= 0 && currentHist < 0) return -1.0;
-
-            return 0;
-        }
-
-        private double CalculateMACDDivergence(IReadOnlyList<OhlcBar> bars, int currentIndex, double currentMACD)
-        {
-            if (_macdHistory.Count < 10) return 0;
-
-            var prices = new double[10];
-            var macdValues = new double[10];
-
-            for (int i = 0; i < 10; i++)
-            {
-                prices[9 - i] = (double)bars[currentIndex - i].Close;
-                macdValues[9 - i] = i < _macdHistory.Count ? _macdHistory[i] : currentMACD;
-            }
-
-            return CalculateDivergence(prices, macdValues, 10);
-        }
-
         private double CalculateMACDQuality(RollingWindow<double> history)
         {
             if (history.Count < 5) return 0;
 
             var recent = history.GetValues().Take(5).ToList();
             return CalculateMomentumQuality(recent);
-        }
-
-        private (double k, double d) CalculateStochastic(IReadOnlyList<OhlcBar> bars, int currentIndex, int period, int smoothK)
-        {
-            if (currentIndex < period) return (50, 50);
-
-            double highest = double.MinValue;
-            double lowest = double.MaxValue;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                highest = Math.Max(highest, (double)bars[i].High);
-                lowest = Math.Min(lowest, (double)bars[i].Low);
-            }
-
-            var close = (double)bars[currentIndex].Close;
-            var k = SafeDiv(close - lowest, highest - lowest) * 100;
-
-            // %D is SMA of %K
-            var d = k;  // Simplified
-            if (currentIndex >= period + smoothK)
-            {
-                var kValues = new List<double>();
-                for (int i = 0; i < smoothK; i++)
-                {
-                    // Recalculate K for previous bars
-                    kValues.Add(k);  // Simplified - should calculate actual K values
-                }
-                d = kValues.Average();
-            }
-
-            return (k, d);
-        }
-
-        private double CalculateStochasticDivergence(IReadOnlyList<OhlcBar> bars, int currentIndex, double currentStoch)
-        {
-            if (_stochHistory.Count < 10) return 0;
-
-            var prices = new double[10];
-            var stochValues = new double[10];
-
-            for (int i = 0; i < 10; i++)
-            {
-                prices[9 - i] = (double)bars[currentIndex - i].Close;
-                stochValues[9 - i] = i < _stochHistory.Count ? _stochHistory[i] : currentStoch;
-            }
-
-            return CalculateDivergence(prices, stochValues, 10);
         }
 
         private (double upper, double middle, double lower, double width) CalculateBollingerBands(
@@ -436,24 +235,6 @@ namespace ForexFeatureGenerator.Features.Core
             return (bullishCount - 1.5) / 1.5;  // Normalize to [-1, 1]
         }
 
-        private double DetectMACross(double fastMA, double slowMA, IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            if (currentIndex < 1) return 0;
-
-            var prevFast = CalculateEMA(bars, currentIndex - 1,
-                fastMA == CalculateEMA(bars, currentIndex, 9) ? 9 : 21);
-            var prevSlow = CalculateEMA(bars, currentIndex - 1,
-                slowMA == CalculateEMA(bars, currentIndex, 21) ? 21 : 50);
-
-            // Golden cross
-            if (prevFast <= prevSlow && fastMA > slowMA) return 1.0;
-
-            // Death cross
-            if (prevFast >= prevSlow && fastMA < slowMA) return -1.0;
-
-            return 0;
-        }
-
         private double CalculateMAConvergence(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var ema9 = CalculateEMA(bars, currentIndex, 9);
@@ -497,28 +278,10 @@ namespace ForexFeatureGenerator.Features.Core
             return CalculatePercentileRank(currentATR, historicalATRs) / 100;
         }
 
-        private double CalculateSignalAgreement(params double[] signals)
-        {
-            if (signals.Length == 0) return 0;
-
-            var positiveCount = signals.Count(s => s > 0.2);
-            var negativeCount = signals.Count(s => s < -0.2);
-
-            // High agreement if most signals point same direction
-            if (positiveCount > signals.Length * 0.7)
-                return (double)positiveCount / signals.Length;
-
-            if (negativeCount > signals.Length * 0.7)
-                return -(double)negativeCount / signals.Length;
-
-            return 0;  // No clear agreement
-        }
-
         public override void Reset()
         {
             _rsiHistory.Clear();
             _macdHistory.Clear();
-            _stochHistory.Clear();
         }
     }
 }

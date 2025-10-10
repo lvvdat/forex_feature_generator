@@ -14,18 +14,12 @@ namespace ForexFeatureGenerator.Features.Core
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
         public override int Priority => 1;  // Highest priority
 
-        private readonly RollingWindow<double> _priceHistory = new(100);
-        private readonly RollingWindow<double> _momentumHistory = new(50);
-        private readonly RollingWindow<double> _volumeHistory = new(50);
-
         public override void Calculate(FeatureVector output, IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             if (currentIndex < 50) return;  // Need sufficient history
 
             var bar = bars[currentIndex];
             var close = (double)bar.Close;
-
-            _priceHistory.Add(close);
 
             // ===== 1. MOMENTUM-BASED DIRECTIONAL FEATURES =====
             // These directly correlate with label direction
@@ -34,17 +28,14 @@ namespace ForexFeatureGenerator.Features.Core
             var momentum5 = close - (double)bars[currentIndex - 5].Close;
             var momentumZ5 = CalculateMomentumZScore(bars, currentIndex, 5);
             output.AddFeature("01_dir_momentum_z5", momentumZ5);
-            output.AddFeature("01_dir_momentum_signal_5", CreateDirectionalSignal(momentumZ5, 1.5, -1.5));
 
             // Medium-term momentum (10-bar)
             var momentumZ10 = CalculateMomentumZScore(bars, currentIndex, 10);
             output.AddFeature("01_dir_momentum_z10", momentumZ10);
-            output.AddFeature("01_dir_momentum_signal_10", CreateDirectionalSignal(momentumZ10, 1.0, -1.0));
 
             // Momentum acceleration (2nd derivative)
             var momentumAccel = CalculateMomentumAcceleration(bars, currentIndex);
             output.AddFeature("01_dir_momentum_accel", momentumAccel);
-            output.AddFeature("01_dir_momentum_accel_signal", CreateDirectionalSignal(momentumAccel, 0.5, -0.5));
 
             // Momentum quality (consistency of direction)
             var momentumQuality = CalculateMomentumQualityScore(bars, currentIndex);
@@ -61,14 +52,9 @@ namespace ForexFeatureGenerator.Features.Core
             var patternDirection = CalculateMultiBarPattern(bars, currentIndex);
             output.AddFeature("01_dir_pattern_strength", patternDirection);
 
-            // Higher high/lower low sequence
-            var hhllSignal = CalculateHHLLSignal(bars, currentIndex);
-            output.AddFeature("01_dir_hhll_signal", hhllSignal);
-
             // Price position relative to recent range
             var pricePosition = CalculatePricePosition(bars, currentIndex, 20);
             output.AddFeature("01_dir_price_position", pricePosition);
-            output.AddFeature("01_dir_price_breakout", Math.Abs(pricePosition) > 0.8 ? Math.Sign(pricePosition) : 0);
 
             // ===== 3. VOLUME-BASED DIRECTIONAL FEATURES =====
             // Volume confirms direction
@@ -79,7 +65,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Volume-weighted directional pressure
             var volumePressure = CalculateVolumePressure(bars, currentIndex);
             output.AddFeature("01_dir_volume_pressure", volumePressure);
-            output.AddFeature("01_dir_volume_signal", CreateDirectionalSignal(volumePressure, 0.3, -0.3));
 
             // Volume momentum correlation
             var volumeMomentumCorr = CalculateVolumeMomentumCorrelation(bars, currentIndex);
@@ -96,53 +81,13 @@ namespace ForexFeatureGenerator.Features.Core
             var (dmPlus, dmMinus) = CalculateDirectionalMovement(bars, currentIndex);
             output.AddFeature("01_dir_dm_plus", dmPlus);
             output.AddFeature("01_dir_dm_minus", dmMinus);
-            output.AddFeature("01_dir_dm_signal", dmPlus > dmMinus ? 1.0 : dmMinus > dmPlus ? -1.0 : 0.0);
 
             // Trend efficiency (how directly price moves)
             var efficiency = CalculateTrendEfficiency(bars, currentIndex, 10);
             output.AddFeature("01_dir_trend_efficiency", efficiency);
 
-            // ===== 6. COMPOSITE DIRECTIONAL SIGNALS =====
-            // Combines multiple indicators for robust prediction
-
-            // Primary composite signal
-            var primaryComposite = CreateCompositeSignal(
-                (momentumZ5, 0.3),
-                (momentumZ10, 0.2),
-                (volumePressure, 0.2),
-                (patternDirection, 0.15),
-                (dmPlus - dmMinus, 0.15)
-            );
-            output.AddFeature("01_dir_composite_primary", primaryComposite);
-
-            // Confirmation composite (for high confidence trades)
-            var confirmationComposite = CreateCompositeSignal(
-                (momentumQuality, 0.25),
-                (volumeMomentumCorr, 0.25),
-                (efficiency, 0.25),
-                (trendStrength > 0.3 ? primaryComposite : 0, 0.25)
-            );
-            output.AddFeature("01_dir_composite_confirmation", confirmationComposite);
-
-            // Final directional probability
-            var directionalProb = CalculateDirectionalProbability(primaryComposite, confirmationComposite, trendStrength);
-            output.AddFeature("01_dir_probability", directionalProb);
-
-            // Signal confidence score
-            var confidence = Math.Abs(directionalProb) * trendStrength * momentumQuality;
-            output.AddFeature("01_dir_confidence", confidence);
-
             // ===== 7. REVERSAL DETECTION FEATURES =====
-            // Identifies potential direction changes
-
-            // Momentum divergence
-            var divergence = CalculateMomentumDivergence(bars, currentIndex);
-            output.AddFeature("01_dir_divergence", divergence);
-
-            // Exhaustion signal
-            var exhaustion = CalculateExhaustionSignal(bars, currentIndex);
-            output.AddFeature("01_dir_exhaustion", exhaustion);
-
+            
             // Mean reversion probability
             var meanReversionProb = CalculateMeanReversionProbability(bars, currentIndex);
             output.AddFeature("01_dir_mean_reversion_prob", meanReversionProb);
@@ -235,44 +180,6 @@ namespace ForexFeatureGenerator.Features.Core
             }
 
             return Sigmoid(patternScore / 6);  // Normalize to [-1, 1]
-        }
-
-        private double CalculateHHLLSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Find swing highs and lows
-            var highs = new List<double>();
-            var lows = new List<double>();
-
-            for (int i = currentIndex - 20; i <= currentIndex; i += 5)
-            {
-                var localHigh = double.MinValue;
-                var localLow = double.MaxValue;
-
-                for (int j = i - 2; j <= i + 2 && j <= currentIndex; j++)
-                {
-                    if (j >= 0)
-                    {
-                        localHigh = Math.Max(localHigh, (double)bars[j].High);
-                        localLow = Math.Min(localLow, (double)bars[j].Low);
-                    }
-                }
-
-                highs.Add(localHigh);
-                lows.Add(localLow);
-            }
-
-            // Check for higher highs and higher lows (uptrend)
-            int hhCount = 0, llCount = 0;
-            for (int i = 1; i < highs.Count; i++)
-            {
-                if (highs[i] > highs[i - 1]) hhCount++;
-                if (lows[i] > lows[i - 1]) llCount++;
-            }
-
-            if (hhCount > highs.Count / 2 && llCount > lows.Count / 2) return 1.0;
-            if (hhCount < highs.Count / 3 && llCount < lows.Count / 3) return -1.0;
-
-            return 0.0;
         }
 
         private double CalculatePricePosition(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
@@ -423,48 +330,6 @@ namespace ForexFeatureGenerator.Features.Core
             return SafeDiv(direction, volatility);
         }
 
-        private double CalculateDirectionalProbability(double primary, double confirmation, double trendStrength)
-        {
-            // Weight factors based on market conditions
-            var primaryWeight = 0.5 + trendStrength * 0.2;
-            var confirmWeight = 0.3;
-
-            var prob = primary * primaryWeight + confirmation * confirmWeight;
-
-            // Apply sigmoid for smooth probability
-            return Sigmoid(prob, 2.0);
-        }
-
-        private double CalculateMomentumDivergence(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var prices = new double[10];
-            var momentum = new double[10];
-
-            for (int i = 0; i < 10; i++)
-            {
-                var idx = currentIndex - 9 + i;
-                prices[i] = (double)bars[idx].Close;
-                momentum[i] = idx >= 5 ? (double)(bars[idx].Close - bars[idx - 5].Close) : 0;
-            }
-
-            return CalculateDivergence(prices, momentum, 10);
-        }
-
-        private double CalculateExhaustionSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Check for overextended moves
-            var momentum = (double)(bars[currentIndex].Close - bars[currentIndex - 10].Close);
-            var atr = CalculateATR(bars, currentIndex, 14);
-
-            var extension = SafeDiv(Math.Abs(momentum), atr);
-
-            // Exhaustion if move > 3 ATR
-            if (extension > 3)
-                return -Math.Sign(momentum);  // Expect reversal
-
-            return 0;
-        }
-
         private double CalculateMeanReversionProbability(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var sma20 = CalculateSMA(bars, currentIndex, 20);
@@ -479,13 +344,6 @@ namespace ForexFeatureGenerator.Features.Core
                 return -Math.Sign(normalizedDev) * Math.Min(1.0, Math.Abs(normalizedDev) / 3);
 
             return 0;
-        }
-
-        public override void Reset()
-        {
-            _priceHistory.Clear();
-            _momentumHistory.Clear();
-            _volumeHistory.Clear();
         }
     }
 }

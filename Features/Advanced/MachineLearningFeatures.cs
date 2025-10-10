@@ -57,19 +57,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var priceVolumeInteraction = normalizedPrice * normalizedVolume;
             output.AddFeature("07_ml_price_volume_interaction", priceVolumeInteraction);
 
-            // Trend-Momentum interaction
-            if (currentIndex >= 50)
-            {
-                var trendStrength = CalculateTrendStrength(bars, currentIndex);
-                var momentumStrength = CalculateMomentumStrength(bars, currentIndex);
-                output.AddFeature("07_ml_trend_momentum_interaction", trendStrength * momentumStrength);
-            }
-
-            // Volatility-Volume interaction
-            var volatility = CalculateATR(bars, currentIndex, 14);
-            var volVolInteraction = SafeDiv(volatility * bar.TickVolume, _volumeRollingMean);
-            output.AddFeature("07_ml_volatility_volume_interaction", volVolInteraction);
-
             // ===== POLYNOMIAL FEATURES =====
             // Quadratic price momentum
             var returns = Math.Log(close / (double)bars[currentIndex - 10].Close);
@@ -83,10 +70,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             // ===== RATIO FEATURES =====
             var sma20 = CalculateSMA(bars, currentIndex, 20);
             var ema20 = CalculateEMA(bars, currentIndex, 20);
-
-            // Price to MA ratios
-            output.AddFeature("07_ml_price_to_sma20_ratio", SafeDiv(close, sma20));
-            output.AddFeature("07_ml_price_to_ema20_ratio", SafeDiv(close, ema20));
 
             // Volume ratio to various averages
             if (_volumeHistory.Count >= 20)
@@ -189,7 +172,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("07_ml_price_lag_5", (double)bars[currentIndex - 5].Close);
 
             // Percentage changes
-            output.AddFeature("07_ml_pct_change_lag_1", SafeDiv(close - (double)bars[currentIndex - 1].Close, (double)bars[currentIndex - 1].Close) * 100);
             output.AddFeature("07_ml_pct_change_lag_5", SafeDiv(close - (double)bars[currentIndex - 5].Close, (double)bars[currentIndex - 5].Close) * 100);
 
             // Update histories
@@ -225,32 +207,6 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             _volumeRollingMean = volumes.Average();
             _volumeRollingStd = Math.Sqrt(volumes.Select(v => Math.Pow(v - _volumeRollingMean, 2)).Average());
-        }
-
-        private double CalculateTrendStrength(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var ema9 = CalculateEMA(bars, currentIndex, 9);
-            var ema21 = CalculateEMA(bars, currentIndex, 21);
-            var ema50 = CalculateEMA(bars, currentIndex, 50);
-
-            var strength = 0.0;
-            if (ema9 > ema21 && ema21 > ema50) strength = 1.0;
-            else if (ema9 < ema21 && ema21 < ema50) strength = -1.0;
-            else strength = SafeDiv(ema9 - ema50, ema50);
-
-            return strength;
-        }
-
-        private double CalculateMomentumStrength(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var rsi = CalculateRSI(bars, currentIndex, 14);
-            var roc = SafeDiv((double)(bars[currentIndex].Close - bars[currentIndex - 10].Close), (double)bars[currentIndex - 10].Close);
-
-            // Normalize to [-1, 1]
-            var rsiNorm = (rsi - 50) / 50;
-            var rocNorm = Math.Tanh(roc * 100);
-
-            return (rsiNorm + rocNorm) / 2;
         }
 
         private double CalculateVolumeConcentration(IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -469,23 +425,6 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             var rs = avgGain / avgLoss;
             return 100 - (100 / (1 + rs));
-        }
-
-        private double CalculateStochastic(IReadOnlyList<OhlcBar> bars, int period, int currentIndex)
-        {
-            if (currentIndex < period) return 50;
-
-            double high = double.MinValue;
-            double low = double.MaxValue;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                high = Math.Max(high, (double)bars[i].High);
-                low = Math.Min(low, (double)bars[i].Low);
-            }
-
-            var close = (double)bars[currentIndex].Close;
-            return SafeDiv(close - low, high - low) * 100;
         }
 
         private double CalculateMACD(IReadOnlyList<OhlcBar> bars, int currentIndex)

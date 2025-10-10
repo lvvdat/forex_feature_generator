@@ -15,9 +15,6 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
         public override int Priority => 5;
 
-        private readonly RollingWindow<PositionSnapshot> _positionHistory = new(100);
-        //private readonly RollingWindow<TradeSetup> _setupHistory = new(50);
-
         // Scalping parameters (from label config: 3.5/2.5 pips)
         private const double TRAILING_STOP_ACTIVATION_PIPS = 3.5;
         private const double TRAILING_STOP_DISTANCE_PIPS = 2.5;
@@ -63,26 +60,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("05_pos_short_risk_reward", shortQuality.riskReward);
             output.AddFeature("05_pos_short_success_prob", shortQuality.successProbability);
 
-            // ===== POSITION RECOMMENDATION =====
-            var (recommendedPos, confidence) = DeterminePositionRecommendation(longQuality, shortQuality);
-            output.AddFeature("05_pos_recommendation", recommendedPos);
-            output.AddFeature("05_pos_recommendation_confidence", confidence);
-
-            // ===== ENTRY SIGNALS =====
-            var longEntry = DetectLongEntrySignal(bars, currentIndex);
-            output.AddFeature("05_pos_long_entry_signal", longEntry.signal);
-            output.AddFeature("05_pos_long_entry_strength", longEntry.strength);
-            output.AddFeature("05_pos_long_entry_confirmation", longEntry.confirmation);
-
-            var shortEntry = DetectShortEntrySignal(bars, currentIndex);
-            output.AddFeature("05_pos_short_entry_signal", shortEntry.signal);
-            output.AddFeature("05_pos_short_entry_strength", shortEntry.strength);
-            output.AddFeature("05_pos_short_entry_confirmation", shortEntry.confirmation);
-
-            // ===== EXIT SIGNALS =====
-            output.AddFeature("05_pos_long_exit_signal", DetectLongExitSignal(bars, currentIndex));
-            output.AddFeature("05_pos_short_exit_signal", DetectShortExitSignal(bars, currentIndex));
-
             // ===== TRAILING STOP ANALYSIS =====
             var longTrailing = AnalyzeTrailingStopLong(bars, currentIndex);
             output.AddFeature("05_pos_long_trailing_active", longTrailing.wouldActivate ? 1.0 : 0.0);
@@ -105,7 +82,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var structure = AnalyzeMarketStructure(bars, currentIndex);
             output.AddFeature("05_pos_support_strength", structure.supportStrength);
             output.AddFeature("05_pos_resistance_strength", structure.resistanceStrength);
-            output.AddFeature("05_pos_trend_alignment", structure.trendAlignment);
 
             // ===== OPTIMAL ENTRY LEVELS =====
             var optimalEntry = FindOptimalEntryLevels(bars, currentIndex);
@@ -136,28 +112,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             // ===== TRADE EXPECTANCY =====
             output.AddFeature("05_pos_long_expectancy", CalculateTradeExpectancy(bars, currentIndex, true));
             output.AddFeature("05_pos_short_expectancy", CalculateTradeExpectancy(bars, currentIndex, false));
-
-            // ===== ADVERSE SELECTION RISK =====
-            output.AddFeature("05_pos_adverse_selection", CalculateAdverseSelectionRisk(bars, currentIndex));
-
-            // ===== SLIPPAGE ESTIMATE =====
-            var slippage = EstimateSlippage(bars, currentIndex);
-            output.AddFeature("05_pos_expected_slippage", slippage);
-
-            // ===== WIN PROBABILITY =====
-            output.AddFeature("05_pos_long_win_probability", EstimateWinProbability(bars, currentIndex, true));
-            output.AddFeature("05_pos_short_win_probability", EstimateWinProbability(bars, currentIndex, false));
-
-            // Update histories
-            _positionHistory.Add(new PositionSnapshot
-            {
-                Timestamp = bar.Timestamp,
-                RecommendedPosition = (int)recommendedPos,
-                Confidence = confidence,
-                LongQuality = longQuality.quality,
-                ShortQuality = shortQuality.quality,
-                RiskReward = (longQuality.riskReward + shortQuality.riskReward) / 2
-            });
         }
 
         private (double quality, double entryScore, double riskReward, double successProbability) 
@@ -222,7 +176,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (quality, entryScore / 2, riskReward, successProb);
         }
 
-        private (double quality, double entryScore, double riskReward, double successProbability) CalculateShortPositionQuality(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double quality, double entryScore, double riskReward, double successProbability) 
+            CalculateShortPositionQuality(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var scores = new List<double>();
 
@@ -283,119 +238,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (quality, entryScore / 2, riskReward, successProb);
         }
 
-        private (double recommendedPos, double confidence) DeterminePositionRecommendation(
-            (double quality, double entryScore, double riskReward, double successProbability) longQuality,
-            (double quality, double entryScore, double riskReward, double successProbability) shortQuality)
-        {
-            var longScore = (longQuality.quality + longQuality.entryScore + longQuality.riskReward + longQuality.successProbability) / 4;
-            var shortScore = (shortQuality.quality + shortQuality.entryScore + shortQuality.riskReward + shortQuality.successProbability) / 4;
-
-            var diff = Math.Abs(longScore - shortScore);
-            var confidence = Math.Min(1.0, diff * 2);
-
-            if (longScore > shortScore && longScore > 0.6)
-                return (1.0, confidence);
-            else if (shortScore > longScore && shortScore > 0.6)
-                return (-1.0, confidence);
-            else
-                return (0.0, 0.0);
-        }
-
-        private (double signal, double strength, double confirmation) DetectLongEntrySignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var signals = new List<double>();
-
-            // Price pullback to support
-            var support = FindNearestSupport(bars, currentIndex);
-            if (support < 3.0) signals.Add(1.0);
-
-            // RSI oversold recovery
-            var rsi = CalculateRSI(bars, currentIndex, 14);
-            if (rsi > 30 && rsi < 50)
-            {
-                var prevRsi = currentIndex >= 15 ? CalculateRSI(bars, 14, currentIndex - 1) : rsi;
-                if (rsi > prevRsi) signals.Add(1.0);
-            }
-
-            // MACD crossover
-            if (currentIndex >= 26)
-            {
-                var macdCurrent = CalculateMACD(bars, currentIndex);
-                var macdPrev = CalculateMACD(bars, currentIndex - 1);
-                if (macdCurrent > 0 && macdPrev <= 0) signals.Add(1.0);
-            }
-
-            // Volume surge
-            var volRatio = bars[currentIndex].TickVolume / (bars[currentIndex - 1].TickVolume + 1.0);
-            if (volRatio > 1.5) signals.Add(1.0);
-
-            var signal = signals.Count > 0 ? 1.0 : 0.0;
-            var strength = signals.Count > 0 ? signals.Average() : 0.0;
-            var confirmation = (double)signals.Count / 4.0;
-
-            return (signal, strength, confirmation);
-        }
-
-        private (double signal, double strength, double confirmation) DetectShortEntrySignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var signals = new List<double>();
-
-            // Price rejection at resistance
-            var resistance = FindNearestResistance(bars, currentIndex);
-            if (resistance < 3.0) signals.Add(1.0);
-
-            // RSI overbought reversal
-            var rsi = CalculateRSI(bars, currentIndex, 14);
-            if (rsi < 70 && rsi > 50)
-            {
-                var prevRsi = currentIndex >= 15 ? CalculateRSI(bars, 14, currentIndex - 1) : rsi;
-                if (rsi < prevRsi) signals.Add(1.0);
-            }
-
-            // MACD crossunder
-            if (currentIndex >= 26)
-            {
-                var macdCurrent = CalculateMACD(bars, currentIndex);
-                var macdPrev = CalculateMACD(bars, currentIndex - 1);
-                if (macdCurrent < 0 && macdPrev >= 0) signals.Add(1.0);
-            }
-
-            // Volume surge
-            var volRatio = bars[currentIndex].TickVolume / (bars[currentIndex - 1].TickVolume + 1.0);
-            if (volRatio > 1.5) signals.Add(1.0);
-
-            var signal = signals.Count > 0 ? 1.0 : 0.0;
-            var strength = signals.Count > 0 ? signals.Average() : 0.0;
-            var confirmation = (double)signals.Count / 4.0;
-
-            return (signal, strength, confirmation);
-        }
-
-        private double DetectLongExitSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Exit when momentum fades or resistance hit
-            var rsi = CalculateRSI(bars, currentIndex, 14);
-            if (rsi > 70) return 1.0;
-
-            var resistance = FindNearestResistance(bars, currentIndex);
-            if (resistance < 2.0) return 1.0;
-
-            return 0.0;
-        }
-
-        private double DetectShortExitSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Exit when momentum fades or support hit
-            var rsi = CalculateRSI(bars, currentIndex, 14);
-            if (rsi < 30) return 1.0;
-
-            var support = FindNearestSupport(bars, currentIndex);
-            if (support < 2.0) return 1.0;
-
-            return 0.0;
-        }
-
-        private (bool wouldActivate, double potentialProfit, double maxFavorable) AnalyzeTrailingStopLong(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (bool wouldActivate, double potentialProfit, double maxFavorable) 
+            AnalyzeTrailingStopLong(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             if (currentIndex < 10) return (false, 0, 0);
 
@@ -414,7 +258,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (wouldActivate, potentialProfit, maxProfit);
         }
 
-        private (bool wouldActivate, double potentialProfit, double maxFavorable) AnalyzeTrailingStopShort(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (bool wouldActivate, double potentialProfit, double maxFavorable) 
+            AnalyzeTrailingStopShort(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             if (currentIndex < 10) return (false, 0, 0);
 
@@ -433,7 +278,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (wouldActivate, potentialProfit, maxProfit);
         }
 
-        private (double downsideRisk, double upsidePotential, double asymmetry, double stopDistance) CalculateRiskMetrics(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double downsideRisk, double upsidePotential, double asymmetry, double stopDistance) 
+            CalculateRiskMetrics(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var close = (double)bars[currentIndex].Close;
             var atr = CalculateATR(bars, currentIndex, 14);
@@ -449,7 +295,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (downsideRisk, upsidePotential, asymmetry, stopDistance);
         }
 
-        private (double supportStrength, double resistanceStrength, double trendAlignment, double momentumAlignment) AnalyzeMarketStructure(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double supportStrength, double resistanceStrength, double trendAlignment, double momentumAlignment) 
+            AnalyzeMarketStructure(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Support/Resistance strength based on touches
             var supportStrength = CalculateSupportStrength(bars, currentIndex);
@@ -467,7 +314,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (supportStrength, resistanceStrength, trendAlignment, momentumAlignment);
         }
 
-        private (double longEntry, double shortEntry) FindOptimalEntryLevels(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double longEntry, double shortEntry) 
+            FindOptimalEntryLevels(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var close = (double)bars[currentIndex].Close;
             var atr = CalculateATR(bars, currentIndex, 14);
@@ -547,26 +395,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var avgLoss = MAX_DRAWDOWN_PIPS;
 
             return (winProb * avgWin) - ((1 - winProb) * avgLoss);
-        }
-
-        private double CalculateAdverseSelectionRisk(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Risk of being on wrong side
-            var spread = (double)bars[currentIndex].AvgSpread;
-            var atr = CalculateATR(bars, currentIndex, 14);
-
-            // Higher spread relative to ATR = higher adverse selection
-            return Math.Min(1.0, SafeDiv(spread * 10, atr));
-        }
-
-        private double EstimateSlippage(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Slippage estimate based on spread and volatility
-            var spread = (double)bars[currentIndex].AvgSpread;
-            var atr = CalculateATR(bars, currentIndex, 14);
-
-            // During high volatility, slippage increases
-            return spread * (1 + Math.Min(2.0, SafeDiv(atr, spread)));
         }
 
         private double EstimateWinProbability(IReadOnlyList<OhlcBar> bars, int currentIndex, bool isLong)
@@ -694,21 +522,6 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             var rs = avgGain / avgLoss;
             return 100 - (100 / (1 + rs));
-        }
-
-        private double CalculateMACD(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            if (currentIndex < 26) return 0;
-
-            var ema12 = CalculateEMA(bars, currentIndex, 12);
-            var ema26 = CalculateEMA(bars, currentIndex, 26);
-
-            return ema12 - ema26;
-        }
-
-        public override void Reset()
-        {
-            _positionHistory.Clear();
         }
     }
 }

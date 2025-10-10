@@ -43,10 +43,6 @@ namespace ForexFeatureGenerator.Features.Core
             var regimeBias = CalculateRegimeBias(regimeType, bars, currentIndex);
             output.AddFeature("02_regime_directional_bias", regimeBias);
 
-            // Regime transition probability
-            var transitionProb = CalculateRegimeTransition(_regimeHistory);
-            output.AddFeature("02_regime_transition_prob", transitionProb);
-
             // Regime duration and stability
             var (duration, stability) = CalculateRegimeStability(_regimeHistory, regimeType);
             output.AddFeature("02_regime_duration_norm", Sigmoid(duration / 20.0));
@@ -58,14 +54,9 @@ namespace ForexFeatureGenerator.Features.Core
             var currentVol = CalculateRealizedVolatility(bars, currentIndex, 20);
             _volatilityHistory.Add(currentVol);
 
-            // Volatility regime classification
-            var volRegime = ClassifyVolatilityRegime(currentVol, _volatilityHistory);
-            output.AddFeature("02_vol_regime_type", volRegime);
-
             // Volatility trend (expanding/contracting)
             var volTrend = CalculateVolatilityTrend(_volatilityHistory);
             output.AddFeature("02_vol_trend", volTrend);
-            output.AddFeature("02_vol_expansion_signal", volTrend > 0.3 ? 1.0 : volTrend < -0.3 ? -1.0 : 0.0);
 
             // ===== 3. TREND REGIME FEATURES =====
             // Trend characteristics affect directional probabilities
@@ -99,24 +90,12 @@ namespace ForexFeatureGenerator.Features.Core
             var stressIndex = CalculateMarketStress(bars, currentIndex);
             output.AddFeature("02_market_stress", stressIndex);
 
-            // Risk on/off sentiment
-            var riskSentiment = CalculateRiskSentiment(bars, currentIndex);
-            output.AddFeature("02_risk_sentiment", riskSentiment);
-
-            // Correlation breakdown detection
-            var corrBreakdown = DetectCorrelationBreakdown(bars, currentIndex);
-            output.AddFeature("02_correlation_breakdown", corrBreakdown);
-
             // ===== 6. FRACTAL & CHAOS FEATURES =====
             // Non-linear dynamics for complex markets
 
             // Hurst exponent (persistence/mean-reversion)
             var hurst = CalculateHurstExponent(bars, currentIndex);
             output.AddFeature("02_hurst_exponent", (hurst - 0.5) * 2); // Normalize: <0 mean-reverting, >0 trending
-
-            // Lyapunov exponent proxy (chaos indicator)
-            var lyapunov = CalculateLyapunovProxy(bars, currentIndex);
-            output.AddFeature("02_chaos_indicator", lyapunov);
 
             // ===== 7. REGIME-ADAPTIVE SIGNALS =====
             // Combine regime information with directional indicators
@@ -125,31 +104,12 @@ namespace ForexFeatureGenerator.Features.Core
             var adaptiveMomentum = CalculateAdaptiveMomentum(bars, currentIndex, regimeType);
             output.AddFeature("02_regime_momentum", adaptiveMomentum);
 
-            // Regime-adjusted directional signal
-            var regimeSignal = CalculateRegimeAdjustedSignal(
-                bars, currentIndex, regimeType, volRegime);
-            output.AddFeature("02_regime_directional_signal", regimeSignal);
-
             // ===== 8. COMPOSITE REGIME INDICATORS =====
 
             // Market condition score (favorable for trading)
             var marketCondition = CalculateMarketConditionScore(
                 regimeConfidence, trendQuality, efficiency, stressIndex);
             output.AddFeature("02_market_condition_score", marketCondition);
-
-            // Predictability index
-            var predictability = CalculatePredictabilityIndex(
-                hurst, efficiency, regimeConfidence, corrBreakdown);
-            output.AddFeature("02_predictability_index", predictability);
-
-            // Master regime signal
-            var masterRegime = CreateCompositeSignal(
-                (regimeBias, 0.25),
-                (adaptiveMomentum, 0.25),
-                (riskSentiment, 0.2),
-                (regimeSignal, 0.3)
-            );
-            output.AddFeature("02_regime_master_signal", masterRegime);
 
             // Update history
             _regimeHistory.Add(new RegimeSnapshot
@@ -211,22 +171,6 @@ namespace ForexFeatureGenerator.Features.Core
             }
 
             return 0; // No bias in volatile regime
-        }
-
-        private double CalculateRegimeTransition(RollingWindow<RegimeSnapshot> history)
-        {
-            if (history.Count < 20) return 0;
-
-            var regimes = history.GetValues().Take(20).Select(r => r.RegimeType).ToList();
-            int transitions = 0;
-
-            for (int i = 1; i < regimes.Count; i++)
-            {
-                if (regimes[i] != regimes[i - 1])
-                    transitions++;
-            }
-
-            return (double)transitions / regimes.Count;
         }
 
         private (double duration, double stability) CalculateRegimeStability(
@@ -411,46 +355,6 @@ namespace ForexFeatureGenerator.Features.Core
             return Sigmoid((volStress * 0.4 + spreadStress * 0.3 + volumeStress * 0.3) * 2);
         }
 
-        private double CalculateRiskSentiment(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Risk-on: trending, normal volatility
-            // Risk-off: ranging, high volatility
-
-            var efficiency = CalculateKaufmanEfficiency(bars, currentIndex, 20);
-            var volRegime = ClassifyVolatilityRegime(
-                CalculateRealizedVolatility(bars, currentIndex, 14),
-                _volatilityHistory);
-
-            if (efficiency > 0.3 && volRegime <= 0)
-                return 1.0;  // Risk-on
-            if (efficiency < 0.2 && volRegime > 0)
-                return -1.0;  // Risk-off
-
-            return 0;
-        }
-
-        private double DetectCorrelationBreakdown(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Detect if normal price-volume correlations breaking down
-            if (currentIndex < 20) return 0;
-
-            var priceChanges = new List<double>();
-            var volumes = new List<double>();
-
-            for (int i = currentIndex - 19; i <= currentIndex; i++)
-            {
-                priceChanges.Add(Math.Abs((double)(bars[i].Close - bars[i - 1].Close)));
-                volumes.Add(bars[i].TickVolume);
-            }
-
-            // Calculate rolling correlation
-            var correlation = CalculateCorrelation(priceChanges.ToArray(),
-                                                  volumes.Select(v => (double)v).ToArray());
-
-            // Breakdown if correlation becomes negative (unusual)
-            return correlation < -0.2 ? 1.0 : 0.0;
-        }
-
         // ===== FRACTAL & CHAOS METHODS =====
 
         private double CalculateHurstExponent(IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -483,26 +387,6 @@ namespace ForexFeatureGenerator.Features.Core
             var hurst = Math.Log(rs) / Math.Log(50);
 
             return Math.Max(0, Math.Min(1, hurst));
-        }
-
-        private double CalculateLyapunovProxy(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Simplified Lyapunov exponent proxy
-            if (currentIndex < 30) return 0;
-
-            double sum = 0;
-            for (int i = currentIndex - 29; i <= currentIndex - 1; i++)
-            {
-                var r1 = Math.Log((double)bars[i].Close / (double)bars[i - 1].Close);
-                var r2 = Math.Log((double)bars[i + 1].Close / (double)bars[i].Close);
-
-                if (Math.Abs(r1) > 1e-10)
-                {
-                    sum += Math.Log(Math.Abs(r2 / r1));
-                }
-            }
-
-            return Sigmoid(sum / 29);
         }
 
         // ===== ADAPTIVE METHODS =====
@@ -545,44 +429,11 @@ namespace ForexFeatureGenerator.Features.Core
             return 0;
         }
 
-        private double CalculateRegimeAdjustedSignal(IReadOnlyList<OhlcBar> bars, int currentIndex,
-            double regimeType, double volRegime)
-        {
-            var baseMomentum = (double)(bars[currentIndex].Close - bars[currentIndex - 10].Close);
-            var signal = Sigmoid(baseMomentum * 10000);
-
-            // Adjust based on regime
-            if (regimeType == 0)  // Range-bound
-            {
-                signal *= -0.5;  // Fade moves
-            }
-            else if (regimeType == 1)  // Trending
-            {
-                signal *= 1.5;  // Follow trend
-            }
-
-            // Adjust for volatility
-            if (volRegime > 0)  // High volatility
-            {
-                signal *= 0.7;  // Reduce confidence
-            }
-
-            return Math.Max(-1, Math.Min(1, signal));
-        }
-
         private double CalculateMarketConditionScore(double regimeConf, double trendQuality,
             double efficiency, double stress)
         {
             // Good conditions: high confidence, quality, efficiency, low stress
             return (regimeConf * 0.2 + trendQuality * 0.3 + efficiency * 0.3 + (1 - stress) * 0.2);
-        }
-
-        private double CalculatePredictabilityIndex(double hurst, double efficiency,
-            double regimeConf, double corrBreakdown)
-        {
-            // High predictability: trending (hurst > 0.5), efficient, stable regime, normal correlations
-            var hurstScore = hurst > 0.5 ? hurst : 1 - hurst;  // Both trending and mean-reverting are predictable
-            return (hurstScore * 0.3 + efficiency * 0.3 + regimeConf * 0.2 + (1 - corrBreakdown) * 0.2);
         }
 
         // ===== HELPER METHODS =====
@@ -615,28 +466,6 @@ namespace ForexFeatureGenerator.Features.Core
             var dx = SafeDiv(Math.Abs(diPlus - diMinus), diPlus + diMinus) * 100;
 
             return dx;
-        }
-
-        private double CalculateCorrelation(double[] x, double[] y)
-        {
-            if (x.Length != y.Length || x.Length < 2) return 0;
-
-            var avgX = x.Average();
-            var avgY = y.Average();
-
-            double covariance = 0, varX = 0, varY = 0;
-
-            for (int i = 0; i < x.Length; i++)
-            {
-                var diffX = x[i] - avgX;
-                var diffY = y[i] - avgY;
-
-                covariance += diffX * diffY;
-                varX += diffX * diffX;
-                varY += diffY * diffY;
-            }
-
-            return SafeDiv(covariance, Math.Sqrt(varX * varY));
         }
 
         public override void Reset()

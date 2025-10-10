@@ -32,8 +32,6 @@
                 {
                     { "dir_composite_primary", 1.5 },
                     { "micro_flow_composite", 1.2 },
-                    { "tech_master_signal", 1.0 },
-                    { "regime_master_signal", 0.8 }
                 },
                 SelectionMode = FeatureSelectionMode.Adaptive
             };

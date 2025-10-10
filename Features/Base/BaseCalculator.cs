@@ -42,17 +42,6 @@ namespace ForexFeatureGenerator.Features.Core
         }
 
         /// <summary>
-        /// Creates directional signal from indicator value and thresholds
-        /// Returns: 1 for bullish, -1 for bearish, 0 for neutral
-        /// </summary>
-        protected double CreateDirectionalSignal(double value, double bullishThreshold, double bearishThreshold)
-        {
-            if (value > bullishThreshold) return 1.0;
-            if (value < bearishThreshold) return -1.0;
-            return 0.0;
-        }
-
-        /// <summary>
         /// Calculates momentum quality - how consistent the move is
         /// Higher quality = more likely to continue in direction
         /// </summary>
@@ -99,31 +88,6 @@ namespace ForexFeatureGenerator.Features.Core
         {
             if (atr < 1e-10) return 0;
             return (price - level) / atr;
-        }
-
-        /// <summary>
-        /// Creates composite signal from multiple indicators
-        /// Weighted voting for more robust predictions
-        /// </summary>
-        protected double CreateCompositeSignal(params (double signal, double weight)[] signals)
-        {
-            double weightedSum = 0;
-            double totalWeight = 0;
-
-            foreach (var (signal, weight) in signals)
-            {
-                weightedSum += signal * weight;
-                totalWeight += weight;
-            }
-
-            if (totalWeight < 1e-10) return 0;
-
-            var composite = weightedSum / totalWeight;
-
-            // Apply thresholds for clear signals
-            if (composite > 0.5) return 1.0;
-            if (composite < -0.5) return -1.0;
-            return 0.0;
         }
 
         /// <summary>

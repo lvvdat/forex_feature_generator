@@ -44,7 +44,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var attentionWeights = CalculateAttentionWeights(bars, currentIndex, 20);
             var contextVector = CalculateContextVector(bars, currentIndex, attentionWeights);
 
-            output.AddFeature("06_dl_attention_focus", attentionWeights.Max());
             output.AddFeature("06_dl_attention_spread", CalculateAttentionSpread(attentionWeights));
             output.AddFeature("06_dl_context_strength", contextVector);
 
@@ -77,19 +76,11 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("06_dl_avgpool_price", avgPoolPrice);
 
             // ===== RECURRENT FEATURES (LSTM-like) =====
-            // Simulate hidden state evolution
-            var hiddenState = CalculatePseudoHiddenState(bars, currentIndex);
-            output.AddFeature("06_dl_hidden_state", hiddenState);
-
-            // Cell state (memory)
-            var cellState = CalculatePseudoCellState(bars, currentIndex);
-            output.AddFeature("06_dl_cell_state", cellState);
 
             // Gates simulation
             var (forgetGate, inputGate, outputGate) = CalculatePseudoGates(bars, currentIndex);
             output.AddFeature("06_dl_forget_gate", forgetGate);
             output.AddFeature("06_dl_input_gate", inputGate);
-            output.AddFeature("06_dl_output_gate", outputGate);
 
             // ===== TEMPORAL PATTERNS =====
             // Identify recurring patterns in sequences
@@ -106,10 +97,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Dimensionality reduction representation
             var bottleneck = CalculateBottleneckRepresentation(bars, currentIndex);
             output.AddFeature("06_dl_bottleneck_feat", bottleneck);
-
-            // Reconstruction error (anomaly detection)
-            var reconstructionError = CalculateReconstructionError(bars, currentIndex);
-            output.AddFeature("06_dl_reconstruction_error", reconstructionError);
 
             // ===== MULTI-SCALE TEMPORAL FEATURES =====
             // Features at different time resolutions
@@ -136,9 +123,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var nodeImportance = CalculateNodeImportance(bars, currentIndex);
             output.AddFeature("06_dl_node_importance", nodeImportance);
 
-            var edgeStrength = CalculateAverageEdgeStrength(bars, currentIndex);
-            output.AddFeature("06_dl_edge_strength", edgeStrength);
-
             // ===== TRANSFORMER-LIKE FEATURES =====
             // Positional encoding
             var posEncoding = CalculatePositionalEncoding(currentIndex);
@@ -150,7 +134,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var predicted = PredictFromHistory(bars, currentIndex);
             var residual = (double)bar.Close - predicted;
             output.AddFeature("06_dl_residual", residual * 10000);
-            output.AddFeature("06_dl_residual_ratio", SafeDiv(residual, predicted));
 
             // ===== LAYER NORMALIZATION =====
             // Normalized features across the sequence
@@ -188,16 +171,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             for (int i = 0; i < length; i++)
             {
                 sequence[i] = (double)bars[currentIndex - length + 1 + i].Close;
-            }
-            return sequence;
-        }
-
-        private double[] ExtractVolumeSequence(IReadOnlyList<OhlcBar> bars, int currentIndex, int length)
-        {
-            var sequence = new double[length];
-            for (int i = 0; i < length; i++)
-            {
-                sequence[i] = bars[currentIndex - length + 1 + i].TickVolume;
             }
             return sequence;
         }
@@ -278,7 +251,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return entropy;
         }
 
-        private (double priceConv, double volumeConv) ApplyTemporalConvolution(IReadOnlyList<OhlcBar> bars, int currentIndex, int kernelSize)
+        private (double priceConv, double volumeConv) 
+            ApplyTemporalConvolution(IReadOnlyList<OhlcBar> bars, int currentIndex, int kernelSize)
         {
             // Simple learned kernel (averaging with exponential decay)
             double priceSum = 0;
@@ -296,7 +270,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (priceSum / weightSum, volumeSum / weightSum);
         }
 
-        private (double price, double volume) ApplyMaxPooling(IReadOnlyList<OhlcBar> bars, int currentIndex, int windowSize, int poolSize)
+        private (double price, double volume) 
+            ApplyMaxPooling(IReadOnlyList<OhlcBar> bars, int currentIndex, int windowSize, int poolSize)
         {
             var maxPrice = double.MinValue;
             var maxVolume = double.MinValue;
@@ -313,7 +288,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (maxPrice, maxVolume);
         }
 
-        private (double price, double volume) ApplyAveragePooling(IReadOnlyList<OhlcBar> bars, int currentIndex, int windowSize, int poolSize)
+        private (double price, double volume) 
+            ApplyAveragePooling(IReadOnlyList<OhlcBar> bars, int currentIndex, int windowSize, int poolSize)
         {
             var prices = new List<double>();
             var volumes = new List<double>();
@@ -327,35 +303,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (prices.Average(), volumes.Average());
         }
 
-        private double CalculatePseudoHiddenState(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Exponentially weighted moving average (like LSTM hidden state)
-            double state = 0;
-            double alpha = 0.9;
-
-            for (int i = currentIndex - 9; i <= currentIndex; i++)
-            {
-                state = alpha * state + (1 - alpha) * (double)bars[i].Close;
-            }
-
-            return state;
-        }
-
-        private double CalculatePseudoCellState(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Long-term memory (slower decay)
-            double state = 0;
-            double alpha = 0.95;
-
-            for (int i = currentIndex - 19; i <= currentIndex; i++)
-            {
-                state = alpha * state + (1 - alpha) * (double)bars[i].Close;
-            }
-
-            return state;
-        }
-
-        private (double forget, double input, double output) CalculatePseudoGates(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double forget, double input, double output) 
+            CalculatePseudoGates(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Simulate LSTM gates using volatility and momentum
             var atr = CalculateATR(bars, currentIndex, 14);
@@ -470,15 +419,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             return covariance;
         }
 
-        private double CalculateReconstructionError(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Difference between actual and reconstructed (predicted) values
-            var actual = (double)bars[currentIndex].Close;
-            var predicted = PredictFromHistory(bars, currentIndex);
-
-            return Math.Abs(actual - predicted) / actual;
-        }
-
         private double CalculateMultiScaleFeature(IReadOnlyList<OhlcBar> bars, int currentIndex, int scale)
         {
             // Moving average at different scales
@@ -511,20 +451,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             avgVolume /= 10;
 
             return SafeDiv(currentVolume, avgVolume);
-        }
-
-        private double CalculateAverageEdgeStrength(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Edge strength = correlation between consecutive bars
-            var strengths = new List<double>();
-
-            for (int i = currentIndex - 9; i < currentIndex; i++)
-            {
-                var priceChange = Math.Abs((double)(bars[i + 1].Close - bars[i].Close));
-                strengths.Add(priceChange);
-            }
-
-            return strengths.Average();
         }
 
         private (double sin, double cos) CalculatePositionalEncoding(int position)

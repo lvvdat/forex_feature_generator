@@ -16,7 +16,6 @@ namespace ForexFeatureGenerator.Features.Core
 
         private readonly RollingWindow<OrderFlowSnapshot> _flowHistory = new(100);
         private readonly RollingWindow<double> _spreadHistory = new(50);
-        private readonly RollingWindow<double> _imbalanceHistory = new(50);
 
         private class OrderFlowSnapshot
         {
@@ -45,24 +44,9 @@ namespace ForexFeatureGenerator.Features.Core
             var flowImbalance = totalVolume > 0 ? netFlow / totalVolume : 0;
             output.AddFeature("03_micro_flow_imbalance", flowImbalance);
 
-            // Order flow imbalance signal
-            var imbalanceSignal = CreateDirectionalSignal(flowImbalance, 0.3, -0.3);
-            output.AddFeature("03_micro_imbalance_signal", imbalanceSignal);
-
-            // Cumulative Volume Delta (CVD)
-            var cvd = CalculateCVD(bars, currentIndex, 10);
-            var cvdNormalized = NormalizeCVD(cvd, bars, currentIndex);
-            output.AddFeature("03_micro_cvd_normalized", cvdNormalized);
-
-            // Volume-weighted order flow
-            var vwof = CalculateVolumeWeightedOrderFlow(bars, currentIndex);
-            output.AddFeature("03_micro_vwof", vwof);
-
             // Order flow acceleration
             var flowAcceleration = CalculateFlowAcceleration(netFlow, _flowHistory);
             output.AddFeature("03_micro_flow_acceleration", flowAcceleration);
-
-            _imbalanceHistory.Add(flowImbalance);
 
             // ===== 2. VOLUME PRESSURE FEATURES =====
             // Indicates buying/selling pressure intensity
@@ -77,7 +61,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Pressure differential (key directional indicator)
             var pressureDiff = buyPressure - sellPressure;
             output.AddFeature("03_micro_pressure_diff", pressureDiff);
-            output.AddFeature("03_micro_pressure_signal", CreateDirectionalSignal(pressureDiff, 0.2, -0.2));
 
             // Large order detection (volume spike)
             var volumeSpike = DetectVolumeSpike(bar, bars, currentIndex);
@@ -93,12 +76,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Normalized spread (z-score)
             var spreadZScore = CalculateSpreadZScore(spreadBps, _spreadHistory);
             output.AddFeature("03_micro_spread_zscore", spreadZScore);
-
-            // Spread regime (tight/normal/wide)
-            var spreadRegime = spreadZScore > 1.5 ? 1.0 :    // Wide spread (uncertainty)
-                              spreadZScore < -1.5 ? -1.0 :   // Tight spread (confidence)
-                              0.0;
-            output.AddFeature("03_micro_spread_regime", spreadRegime);
 
             // Spread-volume relationship (liquidity indicator)
             var spreadVolumeRatio = SafeDiv(spreadBps, Math.Log(1 + bar.TickVolume));
@@ -125,14 +102,8 @@ namespace ForexFeatureGenerator.Features.Core
 
             var vwap = CalculateVWAP(bars, currentIndex, 20);
             var vwapDeviation = SafeDiv(close - vwap, vwap) * 10000;  // In basis points
-            var vwapSignal = CreateDirectionalSignal(vwapDeviation, 10, -10);  // ±10 bps threshold
 
             output.AddFeature("03_micro_vwap_deviation", Sigmoid(vwapDeviation / 20));
-            output.AddFeature("03_micro_vwap_signal", vwapSignal);
-
-            // VWAP pull strength (mean reversion to VWAP)
-            var vwapPull = CalculateVWAPPull(close, vwap, bars, currentIndex);
-            output.AddFeature("03_micro_vwap_pull", vwapPull);
 
             // Price efficiency (how directly price moves)
             var priceEfficiency = CalculatePriceEfficiency(bars, currentIndex);
@@ -145,20 +116,12 @@ namespace ForexFeatureGenerator.Features.Core
             var depthImbalance = CalculateDepthImbalance(bar, bars, currentIndex);
             output.AddFeature("03_micro_depth_imbalance", depthImbalance);
 
-            // Kyle's lambda (price impact)
-            var kyleLambda = CalculateKyleLambda(bars, currentIndex);
-            output.AddFeature("03_micro_kyle_lambda", Sigmoid(kyleLambda * 1000));
-
             // Amihud illiquidity
             var amihud = CalculateAmihudIlliquidity(bars, currentIndex);
             output.AddFeature("03_micro_amihud_illiquidity", Sigmoid(amihud * 100));
 
             // ===== 7. MICROSTRUCTURE PATTERNS =====
             // Specific patterns that precede directional moves
-
-            // Absorption pattern (large volume, small price change)
-            var absorption = DetectAbsorptionPattern(bar, bars, currentIndex);
-            output.AddFeature("03_micro_absorption", absorption);
 
             // Iceberg order detection
             var iceberg = DetectIcebergPattern(bars, currentIndex);
@@ -167,39 +130,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Stop hunt pattern
             var stopHunt = DetectStopHuntPattern(bars, currentIndex);
             output.AddFeature("03_micro_stop_hunt", stopHunt);
-
-            // ===== 8. COMPOSITE MICROSTRUCTURE SIGNALS =====
-
-            // Order flow composite
-            var flowComposite = CreateCompositeSignal(
-                (flowImbalance, 0.25),
-                (cvdNormalized, 0.25),
-                (pressureDiff, 0.25),
-                (vwapSignal, 0.25)
-            );
-            output.AddFeature("03_micro_flow_composite", flowComposite);
-
-            // Liquidity composite
-            var liquidityComposite = CreateCompositeSignal(
-                (-spreadZScore / 3, 0.3),  // Inverted: tight spread = good liquidity
-                (tickIntensity, 0.3),
-                (priceEfficiency, 0.2),
-                (-amihud, 0.2)  // Inverted: low illiquidity = good
-            );
-            output.AddFeature("03_micro_liquidity_composite", liquidityComposite);
-
-            // Master microstructure signal
-            var microMaster = CreateCompositeSignal(
-                (flowComposite, 0.4),
-                (liquidityComposite * 0.5, 0.2),  // Liquidity supports direction
-                (depthImbalance, 0.2),
-                (absorption, 0.2)
-            );
-            output.AddFeature("03_micro_master_signal", microMaster);
-
-            // Signal quality (based on microstructure health)
-            var signalQuality = CalculateMicrostructureQuality(spreadZScore, tickIntensity, priceEfficiency, Math.Abs(flowImbalance));
-            output.AddFeature("03_micro_signal_quality", signalQuality);
 
             // Update history
             _flowHistory.Add(new OrderFlowSnapshot
@@ -534,29 +464,10 @@ namespace ForexFeatureGenerator.Features.Core
             return sum / 14;
         }
 
-        private double CalculateMicrostructureQuality(double spreadZ, double tickIntensity,
-            double efficiency, double flowStrength)
-        {
-            // Quality is high when:
-            // - Spread is normal (|z| < 1)
-            // - Tick intensity is high
-            // - Price efficiency is high
-            // - Flow imbalance is strong
-
-            var spreadQuality = Math.Max(0, 1 - Math.Abs(spreadZ) / 3);
-            var intensityQuality = (tickIntensity + 1) / 2;  // Convert from [-1,1] to [0,1]
-            var efficiencyQuality = efficiency;
-            var flowQuality = flowStrength;
-
-            return (spreadQuality * 0.2 + intensityQuality * 0.2 +
-                   efficiencyQuality * 0.3 + flowQuality * 0.3);
-        }
-
         public override void Reset()
         {
             _flowHistory.Clear();
             _spreadHistory.Clear();
-            _imbalanceHistory.Clear();
         }
     }
 }
