@@ -417,53 +417,6 @@ namespace ForexFeatureGenerator.Features.Core
             return Sigmoid(expansion * 100);  // Normalized expansion signal
         }
 
-        private double CalculateEMA(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            if (currentIndex < period - 1) return (double)bars[currentIndex].Close;
-
-            var multiplier = 2.0 / (period + 1);
-
-            // Initialize with SMA
-            double ema = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex - period + 1 + period - 1; i++)
-            {
-                ema += (double)bars[i].Close;
-            }
-            ema /= period;
-
-            // Calculate EMA
-            for (int i = currentIndex - period + 1 + period; i <= currentIndex; i++)
-            {
-                ema = ((double)bars[i].Close - ema) * multiplier + ema;
-            }
-
-            return ema;
-        }
-
-        private double CalculateSMA(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                sum += (double)bars[i].Close;
-            }
-            return sum / period;
-        }
-
-        private double CalculateStdDev(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            var mean = CalculateSMA(bars, currentIndex, period);
-            double sumSquares = 0;
-
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var diff = (double)bars[i].Close - mean;
-                sumSquares += diff * diff;
-            }
-
-            return Math.Sqrt(sumSquares / period);
-        }
-
         private double CalculateMAAlignment(double price, double ema9, double ema21, double ema50)
         {
             // Perfect bullish alignment: price > EMA9 > EMA21 > EMA50
@@ -528,19 +481,6 @@ namespace ForexFeatureGenerator.Features.Core
             }
 
             return 0;
-        }
-
-        private double CalculateATR(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var tr = Math.Max((double)(bars[i].High - bars[i].Low),
-                        Math.Max(Math.Abs((double)(bars[i].High - bars[i - 1].Close)),
-                                Math.Abs((double)(bars[i].Low - bars[i - 1].Close))));
-                sum += tr;
-            }
-            return sum / period;
         }
 
         private double CalculateVolatilityPercentile(IReadOnlyList<OhlcBar> bars, int currentIndex, double currentATR)

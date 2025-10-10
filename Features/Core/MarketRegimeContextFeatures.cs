@@ -67,14 +67,6 @@ namespace ForexFeatureGenerator.Features.Core
             output.AddFeature("vol_trend", volTrend);
             output.AddFeature("vol_expansion_signal", volTrend > 0.3 ? 1.0 : volTrend < -0.3 ? -1.0 : 0.0);
 
-            // GARCH volatility forecast
-            var garchVol = CalculateGARCHVolatility(bars, currentIndex);
-            output.AddFeature("vol_garch_forecast", garchVol);
-
-            // Volatility surprise (actual vs expected)
-            var volSurprise = currentVol - garchVol;
-            output.AddFeature("vol_surprise", Sigmoid(volSurprise * 100));
-
             // ===== 3. TREND REGIME FEATURES =====
             // Trend characteristics affect directional probabilities
 
@@ -309,30 +301,6 @@ namespace ForexFeatureGenerator.Features.Core
             var slope = CalculateSlope(values);
 
             return Sigmoid(slope * 1000);
-        }
-
-        private double CalculateGARCHVolatility(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Simplified GARCH(1,1)
-            const double omega = 0.000001;
-            const double alpha = 0.05;
-            const double beta = 0.94;
-
-            var returns = new List<double>();
-            for (int i = Math.Max(1, currentIndex - 29); i <= currentIndex; i++)
-            {
-                returns.Add(Math.Log((double)bars[i].Close / (double)bars[i - 1].Close));
-            }
-
-            var unconditionalVar = returns.Select(r => r * r).Average();
-            double garchVar = unconditionalVar;
-
-            foreach (var ret in returns)
-            {
-                garchVar = omega + alpha * ret * ret + beta * garchVar;
-            }
-
-            return Math.Sqrt(garchVar * 252 * 1440);
         }
 
         // ===== TREND METHODS =====
@@ -722,16 +690,6 @@ namespace ForexFeatureGenerator.Features.Core
         }
 
         // ===== HELPER METHODS =====
-
-        private double CalculateSMA(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                sum += (double)bars[i].Close;
-            }
-            return sum / period;
-        }
 
         private double CalculateADX(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
         {

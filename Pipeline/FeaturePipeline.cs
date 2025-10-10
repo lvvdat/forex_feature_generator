@@ -2,6 +2,7 @@
 using ForexFeatureGenerator.Features.Core;
 using ForexFeatureGenerator.Core.Infrastructure;
 using ForexFeatureGenerator.Pipeline;
+using ForexFeatureGenerator.Features.Advanced;
 
 namespace ForexFeatureGenerator.Features.Pipeline
 {
@@ -53,9 +54,9 @@ namespace ForexFeatureGenerator.Features.Pipeline
             // Technical indicators
             RegisterCalculator(new TechnicalIndicatorFeatures());
 
-            // Additional enhanced calculators can be added here
-            // RegisterCalculator(new PatternRecognitionFeatures());
-            // RegisterCalculator(new MachineLearningFeatures());
+            RegisterCalculator(new MachineLearningFeatures());
+            RegisterCalculator(new DeepLearningFeatures());
+            RegisterCalculator(new PositionFeatures());
         }
 
         public void RegisterAggregator(TimeSpan timeframe, int historySize)
@@ -145,9 +146,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
 
             // 3. Apply non-linear transformations
             ApplyNonLinearTransformations(features);
-
-            // 4. Feature selection based on importance
-            //SelectImportantFeatures(features);
         }
 
         /// <summary>
@@ -269,30 +267,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
         }
 
         /// <summary>
-        /// Select most important features based on statistics
-        /// </summary>
-        private void SelectImportantFeatures(FeatureVector features)
-        {
-            // Remove features with low variance (uninformative)
-            var lowVarianceFeatures = _statistics.GetLowVarianceFeatures(threshold: 0.01);
-            foreach (var feature in lowVarianceFeatures)
-            {
-                features.RemoveFeature(feature);
-            }
-
-            // Remove highly correlated features (redundant)
-            var correlatedPairs = _statistics.GetHighlyCorrelatedFeatures(threshold: 0.95);
-            foreach (var pair in correlatedPairs)
-            {
-                // Keep the one with higher importance score
-                var importance1 = _statistics.GetFeatureImportance(pair.Item1);
-                var importance2 = _statistics.GetFeatureImportance(pair.Item2);
-
-                features.RemoveFeature(importance1 > importance2 ? pair.Item2 : pair.Item1);
-            }
-        }
-
-        /// <summary>
         /// Add meta-features that capture overall market state
         /// </summary>
         private void AddMetaFeatures(FeatureVector features)
@@ -325,10 +299,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
             // Prediction confidence based on feature completeness
             var confidence = CalculatePredictionConfidence(features);
             features.AddFeature("meta_prediction_confidence", confidence);
-
-            // Market complexity indicator
-            var complexity = CalculateMarketComplexity(features);
-            features.AddFeature("meta_market_complexity", complexity);
         }
 
         /// <summary>
@@ -434,33 +404,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
             var agreement = Math.Abs(CalculateAgreement(signals));
 
             return (avgStrength + agreement) / 2;
-        }
-
-        private double CalculateMarketComplexity(FeatureVector features)
-        {
-            var complexity = 0.0;
-            var count = 0;
-
-            // High complexity if: high volatility, low efficiency, regime transitions
-            if (features.TryGetFeature("vol_regime_type", out var volRegime))
-            {
-                complexity += Math.Abs(volRegime);
-                count++;
-            }
-
-            if (features.TryGetFeature("trend_efficiency", out var efficiency))
-            {
-                complexity += 1 - efficiency;
-                count++;
-            }
-
-            if (features.TryGetFeature("regime_transition_prob", out var transition))
-            {
-                complexity += transition;
-                count++;
-            }
-
-            return count > 0 ? complexity / count : 0.5;
         }
 
         /// <summary>

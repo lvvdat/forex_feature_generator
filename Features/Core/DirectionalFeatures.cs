@@ -524,29 +524,6 @@ namespace ForexFeatureGenerator.Features.Core
             return 0;
         }
 
-        private double CalculateATR(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                var tr = Math.Max((double)(bars[i].High - bars[i].Low),
-                        Math.Max(Math.Abs((double)(bars[i].High - bars[i - 1].Close)),
-                                Math.Abs((double)(bars[i].Low - bars[i - 1].Close))));
-                sum += tr;
-            }
-            return sum / period;
-        }
-
-        private double CalculateSMA(IReadOnlyList<OhlcBar> bars, int currentIndex, int period)
-        {
-            double sum = 0;
-            for (int i = currentIndex - period + 1; i <= currentIndex; i++)
-            {
-                sum += (double)bars[i].Close;
-            }
-            return sum / period;
-        }
-
         public override void Reset()
         {
             _priceHistory.Clear();
