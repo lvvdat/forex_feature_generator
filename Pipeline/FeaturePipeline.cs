@@ -171,33 +171,33 @@ namespace ForexFeatureGenerator.Features.Pipeline
             if (features.TryGetFeature("dir_momentum_z5", out var momentum) &&
                 features.TryGetFeature("micro_flow_imbalance", out var flowImbalance))
             {
-                features.AddFeature("interaction_momentum_flow", momentum * flowImbalance);
+                features.AddFeature("08_interaction_momentum_flow", momentum * flowImbalance);
             }
             else
             {
-                features.AddFeature("interaction_momentum_flow", 0.0);
+                features.AddFeature("08_interaction_momentum_flow", 0.0);
             }
 
             // Trend × Volatility interaction
             if (features.TryGetFeature("trend_mtf_strength", out var trendStrength) &&
                 features.TryGetFeature("vol_regime_type", out var volRegime))
             {
-                features.AddFeature("interaction_trend_volatility", trendStrength * (1 - Math.Abs(volRegime)));
+                features.AddFeature("08_interaction_trend_volatility", trendStrength * (1 - Math.Abs(volRegime)));
             }
             else
             {
-                features.AddFeature("interaction_trend_volatility", 0.0);
+                features.AddFeature("08_interaction_trend_volatility", 0.0);
             }
 
             // Technical × Microstructure interaction
             if (features.TryGetFeature("tech_master_signal", out var techSignal) &&
                 features.TryGetFeature("micro_master_signal", out var microSignal))
             {
-                features.AddFeature("interaction_tech_micro", (techSignal + microSignal) / 2);
+                features.AddFeature("08_interaction_tech_micro", (techSignal + microSignal) / 2);
             }
             else
             {
-                features.AddFeature("interaction_tech_micro", 0.0);
+                features.AddFeature("08_interaction_tech_micro", 0.0);
             }
 
             // Regime × Direction interaction
@@ -208,11 +208,11 @@ namespace ForexFeatureGenerator.Features.Pipeline
                 var regimeAdjusted = regime == 1 ? direction * 1.2 :  // Trending: amplify
                                     regime == 0 ? direction * -0.5 :  // Range: fade
                                     direction * 0.8;                  // Volatile: reduce
-                features.AddFeature("interaction_regime_direction", Math.Max(-1, Math.Min(1, regimeAdjusted)));
+                features.AddFeature("08_interaction_regime_direction", Math.Max(-1, Math.Min(1, regimeAdjusted)));
             }
             else
             {
-                features.AddFeature("interaction_regime_direction", 0.0);
+                features.AddFeature("08_interaction_regime_direction", 0.0);
             }
         }
 
@@ -228,13 +228,13 @@ namespace ForexFeatureGenerator.Features.Pipeline
             {
                 if (features.TryGetFeature(key, out var value))
                 {
-                    features.AddFeature($"{key}_squared", value * value);
-                    features.AddFeature($"{key}_cubed", value * value * value);
+                    features.AddFeature($"08_{key}_squared", value * value);
+                    features.AddFeature($"08_{key}_cubed", value * value * value);
                 }
                 else
                 {
-                    features.AddFeature($"{key}_squared", 0.0);
-                    features.AddFeature($"{key}_cubed", 0.0);
+                    features.AddFeature($"08_{key}_squared", 0.0);
+                    features.AddFeature($"08_{key}_cubed", 0.0);
                 }
 
             }
@@ -248,11 +248,11 @@ namespace ForexFeatureGenerator.Features.Pipeline
             {
                 if (feature.Value > 0)
                 {
-                    features.AddFeature($"{feature.Key}_log", Math.Log(1 + feature.Value));
+                    features.AddFeature($"08_{feature.Key}_log", Math.Log(1 + feature.Value));
                 }
                 else
                 {
-                    features.AddFeature($"{feature.Key}_log", 0.0);
+                    features.AddFeature($"08_{feature.Key}_log", 0.0);
                 }
             }
         }
@@ -271,25 +271,25 @@ namespace ForexFeatureGenerator.Features.Pipeline
             if (signals.Any())
             {
                 var agreement = CalculateAgreement(signals);
-                features.AddFeature("meta_signal_agreement", agreement);
+                features.AddFeature("08_meta_signal_agreement", agreement);
 
                 // Signal strength (average absolute value)
                 var strength = signals.Select(Math.Abs).Average();
-                features.AddFeature("meta_signal_strength", strength);
+                features.AddFeature("08_meta_signal_strength", strength);
             }
             else
             {
-                features.AddFeature("meta_signal_agreement", 0.0);
-                features.AddFeature("meta_signal_strength", 0.0);
+                features.AddFeature("08_meta_signal_agreement", 0.0);
+                features.AddFeature("08_meta_signal_strength", 0.0);
             }
 
             // Feature quality score
             var qualityScore = CalculateFeatureQuality(features);
-            features.AddFeature("meta_feature_quality", qualityScore);
+            features.AddFeature("08_meta_feature_quality", qualityScore);
 
             // Prediction confidence based on feature completeness
             var confidence = CalculatePredictionConfidence(features);
-            features.AddFeature("meta_prediction_confidence", confidence);
+            features.AddFeature("08_meta_prediction_confidence", confidence);
         }
 
         /// <summary>

@@ -32,32 +32,32 @@ namespace ForexFeatureGenerator.Features.Core
 
             // RSI normalized to [-1, 1] for directionality
             var rsiNormalized = (rsi14 - 50) / 50;  // -1 = oversold, 1 = overbought
-            output.AddFeature("tech_rsi_normalized", rsiNormalized);
+            output.AddFeature("04_tech_rsi_normalized", rsiNormalized);
 
             // RSI directional signal with dynamic thresholds
             var rsiSignal = CreateRSIDirectionalSignal(rsi14, _rsiHistory);
-            output.AddFeature("tech_rsi_signal", rsiSignal);
+            output.AddFeature("04_tech_rsi_signal", rsiSignal);
 
             // RSI divergence (powerful reversal signal)
             var rsiDivergence = CalculateRSIDivergence(bars, currentIndex, rsi14);
-            output.AddFeature("tech_rsi_divergence", rsiDivergence);
+            output.AddFeature("04_tech_rsi_divergence", rsiDivergence);
 
             // RSI momentum (rate of change)
             if (_rsiHistory.Count >= 5)
             {
                 var rsiMomentum = (rsi14 - _rsiHistory[4]) / 5;
-                output.AddFeature("tech_rsi_momentum", Sigmoid(rsiMomentum / 10));
+                output.AddFeature("04_tech_rsi_momentum", Sigmoid(rsiMomentum / 10));
             }
             else
             {
-                output.AddFeature("tech_rsi_momentum", 0.0);
+                output.AddFeature("04_tech_rsi_momentum", 0.0);
             }
 
             // Multi-timeframe RSI composite
             var rsi9 = CalculateRSI(bars, currentIndex, 9);
             var rsi21 = CalculateRSI(bars, currentIndex, 21);
             var rsiComposite = (rsi9 * 0.3 + rsi14 * 0.4 + rsi21 * 0.3 - 50) / 50;
-            output.AddFeature("tech_rsi_composite", rsiComposite);
+            output.AddFeature("04_tech_rsi_composite", rsiComposite);
 
             // ===== 2. MACD-BASED FEATURES (TRANSFORMED) =====
 
@@ -67,19 +67,19 @@ namespace ForexFeatureGenerator.Features.Core
             // MACD histogram normalized by ATR for comparability
             var atr = CalculateATR(bars, currentIndex, 14);
             var macdNormalized = SafeDiv(macdHist, atr);
-            output.AddFeature("tech_macd_normalized", Sigmoid(macdNormalized));
+            output.AddFeature("04_tech_macd_normalized", Sigmoid(macdNormalized));
 
             // MACD cross signal (strong directional indicator)
             var macdCross = DetectMACDCross(macdLine, macdSignal, _macdHistory);
-            output.AddFeature("tech_macd_cross", macdCross);
+            output.AddFeature("04_tech_macd_cross", macdCross);
 
             // MACD divergence
             var macdDivergence = CalculateMACDDivergence(bars, currentIndex, macdHist);
-            output.AddFeature("tech_macd_divergence", macdDivergence);
+            output.AddFeature("04_tech_macd_divergence", macdDivergence);
 
             // MACD momentum quality
             var macdQuality = CalculateMACDQuality(_macdHistory);
-            output.AddFeature("tech_macd_quality", macdQuality);
+            output.AddFeature("04_tech_macd_quality", macdQuality);
 
             // ===== 3. STOCHASTIC FEATURES (TRANSFORMED) =====
 
@@ -88,15 +88,15 @@ namespace ForexFeatureGenerator.Features.Core
 
             // Stochastic normalized to directional signal
             var stochNormalized = (stochK - 50) / 50;
-            output.AddFeature("tech_stoch_normalized", stochNormalized);
+            output.AddFeature("04_tech_stoch_normalized", stochNormalized);
 
             // Stochastic cross signal
             var stochCross = stochK > stochD && stochK > 20 && stochK < 80 ? Math.Sign(stochK - 50) : 0;
-            output.AddFeature("tech_stoch_cross", stochCross);
+            output.AddFeature("04_tech_stoch_cross", stochCross);
 
             // Stochastic divergence
             var stochDivergence = CalculateStochasticDivergence(bars, currentIndex, stochK);
-            output.AddFeature("tech_stoch_divergence", stochDivergence);
+            output.AddFeature("04_tech_stoch_divergence", stochDivergence);
 
             // ===== 4. BOLLINGER BANDS FEATURES (TRANSFORMED) =====
 
@@ -104,19 +104,19 @@ namespace ForexFeatureGenerator.Features.Core
 
             // BB position as directional signal
             var bbPosition = SafeDiv(close - bbLower, bbUpper - bbLower) * 2 - 1;  // [-1, 1]
-            output.AddFeature("tech_bb_position", bbPosition);
+            output.AddFeature("04_tech_bb_position", bbPosition);
 
             // BB squeeze detection (volatility contraction)
             var bbSqueeze = DetectBBSqueeze(bars, currentIndex, bbWidth);
-            output.AddFeature("tech_bb_squeeze", bbSqueeze);
+            output.AddFeature("04_tech_bb_squeeze", bbSqueeze);
 
             // BB band touch signals
             var bbTouch = close > bbUpper ? 1.0 : close < bbLower ? -1.0 : 0.0;
-            output.AddFeature("tech_bb_touch", bbTouch);
+            output.AddFeature("04_tech_bb_touch", bbTouch);
 
             // BB expansion signal (breakout potential)
             var bbExpansion = CalculateBBExpansion(bars, currentIndex, bbWidth);
-            output.AddFeature("tech_bb_expansion", bbExpansion);
+            output.AddFeature("04_tech_bb_expansion", bbExpansion);
 
             // ===== 5. MOVING AVERAGE FEATURES (TRANSFORMED) =====
 
@@ -126,25 +126,25 @@ namespace ForexFeatureGenerator.Features.Core
 
             // MA alignment signal (trend confirmation)
             var maAlignment = CalculateMAAlignment(close, ema9, ema21, ema50);
-            output.AddFeature("tech_ma_alignment", maAlignment);
+            output.AddFeature("04_tech_ma_alignment", maAlignment);
 
             // MA cross signals
             var maCross921 = DetectMACross(ema9, ema21, bars, currentIndex);
-            output.AddFeature("tech_ma_cross_9_21", maCross921);
+            output.AddFeature("04_tech_ma_cross_9_21", maCross921);
 
             var maCross2150 = DetectMACross(ema21, ema50, bars, currentIndex);
-            output.AddFeature("tech_ma_cross_21_50", maCross2150);
+            output.AddFeature("04_tech_ma_cross_21_50", maCross2150);
 
             // Price-MA deviation (mean reversion)
             var maDev9 = SafeDiv(close - ema9, atr);
-            output.AddFeature("tech_ma_dev_9", Sigmoid(maDev9));
+            output.AddFeature("04_tech_ma_dev_9", Sigmoid(maDev9));
 
             var maDev21 = SafeDiv(close - ema21, atr);
-            output.AddFeature("tech_ma_dev_21", Sigmoid(maDev21));
+            output.AddFeature("04_tech_ma_dev_21", Sigmoid(maDev21));
 
             // MA slope convergence/divergence
             var maConvergence = CalculateMAConvergence(bars, currentIndex);
-            output.AddFeature("tech_ma_convergence", maConvergence);
+            output.AddFeature("04_tech_ma_convergence", maConvergence);
 
             // ===== 6. ATR/VOLATILITY FEATURES (TRANSFORMED) =====
 
@@ -153,17 +153,17 @@ namespace ForexFeatureGenerator.Features.Core
 
             // ATR expansion ratio (volatility regime)
             var atrRatio = SafeDiv(atr7, atr14);
-            output.AddFeature("tech_atr_ratio", atrRatio);
+            output.AddFeature("04_tech_atr_ratio", atrRatio);
 
             // Volatility percentile
             var volPercentile = CalculateVolatilityPercentile(bars, currentIndex, atr14);
-            output.AddFeature("tech_vol_percentile", volPercentile);
+            output.AddFeature("04_tech_vol_percentile", volPercentile);
 
             // Volatility regime signal
             var volRegime = volPercentile > 0.7 ? 1.0 :   // High volatility
                            volPercentile < 0.3 ? -1.0 :   // Low volatility
                            0.0;                            // Normal
-            output.AddFeature("tech_vol_regime", volRegime);
+            output.AddFeature("04_tech_vol_regime", volRegime);
 
             // ===== 7. COMPOSITE TECHNICAL SIGNALS =====
 
@@ -173,7 +173,7 @@ namespace ForexFeatureGenerator.Features.Core
                 (stochNormalized, 0.35),
                 (Sigmoid(macdNormalized), 0.30)
             );
-            output.AddFeature("tech_oscillator_composite", oscillatorComposite);
+            output.AddFeature("04_tech_oscillator_composite", oscillatorComposite);
 
             // Trend composite (MA alignment + MACD)
             var trendComposite = CreateCompositeSignal(
@@ -181,7 +181,7 @@ namespace ForexFeatureGenerator.Features.Core
                 (maCross921, 0.3),
                 (Math.Sign(macdLine), 0.3)
             );
-            output.AddFeature("tech_trend_composite", trendComposite);
+            output.AddFeature("04_tech_trend_composite", trendComposite);
 
             // Reversal composite (divergences + extremes)
             var reversalComposite = CreateCompositeSignal(
@@ -190,7 +190,7 @@ namespace ForexFeatureGenerator.Features.Core
                 (stochDivergence, 0.2),
                 (bbTouch * -1, 0.2)  // Band touch suggests reversal
             );
-            output.AddFeature("tech_reversal_composite", reversalComposite);
+            output.AddFeature("04_tech_reversal_composite", reversalComposite);
 
             // Master technical signal
             var masterSignal = CreateCompositeSignal(
@@ -198,13 +198,13 @@ namespace ForexFeatureGenerator.Features.Core
                 (trendComposite, 0.35),
                 (reversalComposite * -0.3, 0.3)  // Reversal opposes trend
             );
-            output.AddFeature("tech_master_signal", masterSignal);
+            output.AddFeature("04_tech_master_signal", masterSignal);
 
             // Signal confidence based on agreement
             var signalAgreement = CalculateSignalAgreement(
                 rsiNormalized, stochNormalized, Sigmoid(macdNormalized),
                 maAlignment, bbPosition);
-            output.AddFeature("tech_signal_confidence", signalAgreement);
+            output.AddFeature("04_tech_signal_confidence", signalAgreement);
         }
 
         // ===== CALCULATION METHODS =====

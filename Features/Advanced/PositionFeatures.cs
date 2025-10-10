@@ -51,115 +51,115 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // ===== LONG POSITION QUALITY =====
             var longQuality = CalculateLongPositionQuality(bars, currentIndex);
-            output.AddFeature("pos_long_quality", longQuality.quality);
-            output.AddFeature("pos_long_entry_score", longQuality.entryScore);
-            output.AddFeature("pos_long_risk_reward", longQuality.riskReward);
-            output.AddFeature("pos_long_success_prob", longQuality.successProbability);
+            output.AddFeature("05_pos_long_quality", longQuality.quality);
+            output.AddFeature("05_pos_long_entry_score", longQuality.entryScore);
+            output.AddFeature("05_pos_long_risk_reward", longQuality.riskReward);
+            output.AddFeature("05_pos_long_success_prob", longQuality.successProbability);
 
             // ===== SHORT POSITION QUALITY =====
             var shortQuality = CalculateShortPositionQuality(bars, currentIndex);
-            output.AddFeature("pos_short_quality", shortQuality.quality);
-            output.AddFeature("pos_short_entry_score", shortQuality.entryScore);
-            output.AddFeature("pos_short_risk_reward", shortQuality.riskReward);
-            output.AddFeature("pos_short_success_prob", shortQuality.successProbability);
+            output.AddFeature("05_pos_short_quality", shortQuality.quality);
+            output.AddFeature("05_pos_short_entry_score", shortQuality.entryScore);
+            output.AddFeature("05_pos_short_risk_reward", shortQuality.riskReward);
+            output.AddFeature("05_pos_short_success_prob", shortQuality.successProbability);
 
             // ===== POSITION RECOMMENDATION =====
             var (recommendedPos, confidence) = DeterminePositionRecommendation(longQuality, shortQuality);
-            output.AddFeature("pos_recommendation", recommendedPos);
-            output.AddFeature("pos_recommendation_confidence", confidence);
+            output.AddFeature("05_pos_recommendation", recommendedPos);
+            output.AddFeature("05_pos_recommendation_confidence", confidence);
 
             // ===== ENTRY SIGNALS =====
             var longEntry = DetectLongEntrySignal(bars, currentIndex);
-            output.AddFeature("pos_long_entry_signal", longEntry.signal);
-            output.AddFeature("pos_long_entry_strength", longEntry.strength);
-            output.AddFeature("pos_long_entry_confirmation", longEntry.confirmation);
+            output.AddFeature("05_pos_long_entry_signal", longEntry.signal);
+            output.AddFeature("05_pos_long_entry_strength", longEntry.strength);
+            output.AddFeature("05_pos_long_entry_confirmation", longEntry.confirmation);
 
             var shortEntry = DetectShortEntrySignal(bars, currentIndex);
-            output.AddFeature("pos_short_entry_signal", shortEntry.signal);
-            output.AddFeature("pos_short_entry_strength", shortEntry.strength);
-            output.AddFeature("pos_short_entry_confirmation", shortEntry.confirmation);
+            output.AddFeature("05_pos_short_entry_signal", shortEntry.signal);
+            output.AddFeature("05_pos_short_entry_strength", shortEntry.strength);
+            output.AddFeature("05_pos_short_entry_confirmation", shortEntry.confirmation);
 
             // ===== EXIT SIGNALS =====
-            output.AddFeature("pos_long_exit_signal", DetectLongExitSignal(bars, currentIndex));
-            output.AddFeature("pos_short_exit_signal", DetectShortExitSignal(bars, currentIndex));
+            output.AddFeature("05_pos_long_exit_signal", DetectLongExitSignal(bars, currentIndex));
+            output.AddFeature("05_pos_short_exit_signal", DetectShortExitSignal(bars, currentIndex));
 
             // ===== TRAILING STOP ANALYSIS =====
             var longTrailing = AnalyzeTrailingStopLong(bars, currentIndex);
-            output.AddFeature("pos_long_trailing_active", longTrailing.wouldActivate ? 1.0 : 0.0);
-            output.AddFeature("pos_long_profit_potential", longTrailing.potentialProfit);
-            output.AddFeature("pos_long_max_favorable", longTrailing.maxFavorable);
+            output.AddFeature("05_pos_long_trailing_active", longTrailing.wouldActivate ? 1.0 : 0.0);
+            output.AddFeature("05_pos_long_profit_potential", longTrailing.potentialProfit);
+            output.AddFeature("05_pos_long_max_favorable", longTrailing.maxFavorable);
 
             var shortTrailing = AnalyzeTrailingStopShort(bars, currentIndex);
-            output.AddFeature("pos_short_trailing_active", shortTrailing.wouldActivate ? 1.0 : 0.0);
-            output.AddFeature("pos_short_profit_potential", shortTrailing.potentialProfit);
-            output.AddFeature("pos_short_max_favorable", shortTrailing.maxFavorable);
+            output.AddFeature("05_pos_short_trailing_active", shortTrailing.wouldActivate ? 1.0 : 0.0);
+            output.AddFeature("05_pos_short_profit_potential", shortTrailing.potentialProfit);
+            output.AddFeature("05_pos_short_max_favorable", shortTrailing.maxFavorable);
 
             // ===== RISK ANALYSIS =====
             var riskMetrics = CalculateRiskMetrics(bars, currentIndex);
-            output.AddFeature("pos_downside_risk", riskMetrics.downsideRisk);
-            output.AddFeature("pos_upside_potential", riskMetrics.upsidePotential);
-            output.AddFeature("pos_risk_asymmetry", riskMetrics.asymmetry);
-            output.AddFeature("pos_stop_distance", riskMetrics.stopDistance);
+            output.AddFeature("05_pos_downside_risk", riskMetrics.downsideRisk);
+            output.AddFeature("05_pos_upside_potential", riskMetrics.upsidePotential);
+            output.AddFeature("05_pos_risk_asymmetry", riskMetrics.asymmetry);
+            output.AddFeature("05_pos_stop_distance", riskMetrics.stopDistance);
 
             // ===== MARKET STRUCTURE FOR POSITIONS =====
             var structure = AnalyzeMarketStructure(bars, currentIndex);
-            output.AddFeature("pos_support_strength", structure.supportStrength);
-            output.AddFeature("pos_resistance_strength", structure.resistanceStrength);
-            output.AddFeature("pos_trend_alignment", structure.trendAlignment);
-            output.AddFeature("pos_momentum_alignment", structure.momentumAlignment);
+            output.AddFeature("05_pos_support_strength", structure.supportStrength);
+            output.AddFeature("05_pos_resistance_strength", structure.resistanceStrength);
+            output.AddFeature("05_pos_trend_alignment", structure.trendAlignment);
+            output.AddFeature("05_pos_momentum_alignment", structure.momentumAlignment);
 
             // ===== OPTIMAL ENTRY LEVELS =====
             var optimalEntry = FindOptimalEntryLevels(bars, currentIndex);
-            output.AddFeature("pos_optimal_long_entry", optimalEntry.longEntry);
-            output.AddFeature("pos_optimal_short_entry", optimalEntry.shortEntry);
-            output.AddFeature("pos_distance_to_long_entry", SafeDiv(optimalEntry.longEntry - close, close) * 10000);
-            output.AddFeature("pos_distance_to_short_entry", SafeDiv(close - optimalEntry.shortEntry, close) * 10000);
+            output.AddFeature("05_pos_optimal_long_entry", optimalEntry.longEntry);
+            output.AddFeature("05_pos_optimal_short_entry", optimalEntry.shortEntry);
+            output.AddFeature("05_pos_distance_to_long_entry", SafeDiv(optimalEntry.longEntry - close, close) * 10000);
+            output.AddFeature("05_pos_distance_to_short_entry", SafeDiv(close - optimalEntry.shortEntry, close) * 10000);
 
             // ===== POSITION HOLDING DURATION ESTIMATE =====
-            output.AddFeature("pos_expected_long_duration", EstimateHoldingDuration(bars, currentIndex, true));
-            output.AddFeature("pos_expected_short_duration", EstimateHoldingDuration(bars, currentIndex, false));
+            output.AddFeature("05_pos_expected_long_duration", EstimateHoldingDuration(bars, currentIndex, true));
+            output.AddFeature("05_pos_expected_short_duration", EstimateHoldingDuration(bars, currentIndex, false));
 
             // ===== MULTI-TIMEFRAME POSITION ALIGNMENT =====
             if (currentIndex >= 50)
             {
                 var alignment = CalculateMultiTimeframeAlignment(bars, currentIndex);
-                output.AddFeature("pos_mtf_long_alignment", alignment.longAlignment);
-                output.AddFeature("pos_mtf_short_alignment", alignment.shortAlignment);
-                output.AddFeature("pos_mtf_consensus", alignment.consensus);
+                output.AddFeature("05_pos_mtf_long_alignment", alignment.longAlignment);
+                output.AddFeature("05_pos_mtf_short_alignment", alignment.shortAlignment);
+                output.AddFeature("05_pos_mtf_consensus", alignment.consensus);
             }
 
             // ===== POSITION SIZING RECOMMENDATION =====
             var sizing = RecommendPositionSize(bars, currentIndex, longQuality, shortQuality);
-            output.AddFeature("pos_recommended_size_long", sizing.longSize);
-            output.AddFeature("pos_recommended_size_short", sizing.shortSize);
-            output.AddFeature("pos_size_confidence", sizing.confidence);
+            output.AddFeature("05_pos_recommended_size_long", sizing.longSize);
+            output.AddFeature("05_pos_recommended_size_short", sizing.shortSize);
+            output.AddFeature("05_pos_size_confidence", sizing.confidence);
 
             // ===== TRADE EXPECTANCY =====
-            output.AddFeature("pos_long_expectancy", CalculateTradeExpectancy(bars, currentIndex, true));
-            output.AddFeature("pos_short_expectancy", CalculateTradeExpectancy(bars, currentIndex, false));
+            output.AddFeature("05_pos_long_expectancy", CalculateTradeExpectancy(bars, currentIndex, true));
+            output.AddFeature("05_pos_short_expectancy", CalculateTradeExpectancy(bars, currentIndex, false));
 
             // ===== POSITION CORRELATION =====
             // How correlated is the position with recent successful setups
             if (_setupHistory.Count >= 10)
             {
                 var correlation = CalculateSetupCorrelation(bars, currentIndex);
-                output.AddFeature("pos_setup_correlation", correlation);
+                output.AddFeature("05_pos_setup_correlation", correlation);
             }
             else
             {
-                output.AddFeature("pos_setup_correlation", 0.0);
+                output.AddFeature("05_pos_setup_correlation", 0.0);
             }
 
             // ===== ADVERSE SELECTION RISK =====
-            output.AddFeature("pos_adverse_selection", CalculateAdverseSelectionRisk(bars, currentIndex));
+            output.AddFeature("05_pos_adverse_selection", CalculateAdverseSelectionRisk(bars, currentIndex));
 
             // ===== SLIPPAGE ESTIMATE =====
             var slippage = EstimateSlippage(bars, currentIndex);
-            output.AddFeature("pos_expected_slippage", slippage);
+            output.AddFeature("05_pos_expected_slippage", slippage);
 
             // ===== WIN PROBABILITY =====
-            output.AddFeature("pos_long_win_probability", EstimateWinProbability(bars, currentIndex, true));
-            output.AddFeature("pos_short_win_probability", EstimateWinProbability(bars, currentIndex, false));
+            output.AddFeature("05_pos_long_win_probability", EstimateWinProbability(bars, currentIndex, true));
+            output.AddFeature("05_pos_short_win_probability", EstimateWinProbability(bars, currentIndex, false));
 
             // Update histories
             _positionHistory.Add(new PositionSnapshot

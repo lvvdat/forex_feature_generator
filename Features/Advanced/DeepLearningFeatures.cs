@@ -13,7 +13,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "DeepLearning";
         public override string Category => "DL_Optimized";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 7;
+        public override int Priority => 6;
 
         private readonly RollingWindow<AttentionSnapshot> _attentionHistory = new(50);
 
@@ -37,23 +37,23 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Create price sequence embeddings (like word embeddings for time series)
             var priceSeq = ExtractPriceSequence(bars, currentIndex, 10);
             var priceEmbedding = CalculateSequenceEmbedding(priceSeq);
-            output.AddFeature("dl_price_embedding", priceEmbedding);
+            output.AddFeature("06_dl_price_embedding", priceEmbedding);
 
             var volumeSeq = ExtractVolumeSequence(bars, currentIndex, 10);
             var volumeEmbedding = CalculateSequenceEmbedding(volumeSeq);
-            output.AddFeature("dl_volume_embedding", volumeEmbedding);
+            output.AddFeature("06_dl_volume_embedding", volumeEmbedding);
 
             // Combined multi-modal embedding
-            output.AddFeature("dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
+            output.AddFeature("06_dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
 
             // ===== ATTENTION-LIKE MECHANISMS =====
             // Calculate attention weights for recent history
             var attentionWeights = CalculateAttentionWeights(bars, currentIndex, 20);
             var contextVector = CalculateContextVector(bars, currentIndex, attentionWeights);
 
-            output.AddFeature("dl_attention_focus", attentionWeights.Max());
-            output.AddFeature("dl_attention_spread", CalculateAttentionSpread(attentionWeights));
-            output.AddFeature("dl_context_strength", contextVector);
+            output.AddFeature("06_dl_attention_focus", attentionWeights.Max());
+            output.AddFeature("06_dl_attention_spread", CalculateAttentionSpread(attentionWeights));
+            output.AddFeature("06_dl_context_strength", contextVector);
 
             // Store attention snapshot
             _attentionHistory.Add(new AttentionSnapshot
@@ -70,56 +70,56 @@ namespace ForexFeatureGenerator.Features.Advanced
                 if (currentIndex >= kernelSize)
                 {
                     var convOutput = ApplyTemporalConvolution(bars, currentIndex, kernelSize);
-                    output.AddFeature($"dl_conv_{kernelSize}_price", convOutput.priceConv);
-                    output.AddFeature($"dl_conv_{kernelSize}_volume", convOutput.volumeConv);
+                    output.AddFeature($"06_dl_conv_{kernelSize}_price", convOutput.priceConv);
+                    output.AddFeature($"06_dl_conv_{kernelSize}_volume", convOutput.volumeConv);
                 }
             }
 
             // ===== POOLING OPERATIONS =====
             // Max pooling
             var (maxPoolPrice, maxPoolVolume) = ApplyMaxPooling(bars, currentIndex, 20, 5);
-            output.AddFeature("dl_maxpool_price", maxPoolPrice);
-            output.AddFeature("dl_maxpool_volume", maxPoolVolume);
+            output.AddFeature("06_dl_maxpool_price", maxPoolPrice);
+            output.AddFeature("06_dl_maxpool_volume", maxPoolVolume);
 
             // Average pooling
             var (avgPoolPrice, avgPoolVolume) = ApplyAveragePooling(bars, currentIndex, 20, 5);
-            output.AddFeature("dl_avgpool_price", avgPoolPrice);
-            output.AddFeature("dl_avgpool_volume", avgPoolVolume);
+            output.AddFeature("06_dl_avgpool_price", avgPoolPrice);
+            output.AddFeature("06_dl_avgpool_volume", avgPoolVolume);
 
             // ===== RECURRENT FEATURES (LSTM-like) =====
             // Simulate hidden state evolution
             var hiddenState = CalculatePseudoHiddenState(bars, currentIndex);
-            output.AddFeature("dl_hidden_state", hiddenState);
+            output.AddFeature("06_dl_hidden_state", hiddenState);
 
             // Cell state (memory)
             var cellState = CalculatePseudoCellState(bars, currentIndex);
-            output.AddFeature("dl_cell_state", cellState);
+            output.AddFeature("06_dl_cell_state", cellState);
 
             // Gates simulation
             var (forgetGate, inputGate, outputGate) = CalculatePseudoGates(bars, currentIndex);
-            output.AddFeature("dl_forget_gate", forgetGate);
-            output.AddFeature("dl_input_gate", inputGate);
-            output.AddFeature("dl_output_gate", outputGate);
+            output.AddFeature("06_dl_forget_gate", forgetGate);
+            output.AddFeature("06_dl_input_gate", inputGate);
+            output.AddFeature("06_dl_output_gate", outputGate);
 
             // ===== TEMPORAL PATTERNS =====
             // Identify recurring patterns in sequences
             if (currentIndex >= 30)
             {
                 var patternScore = DetectRecurringPattern(bars, currentIndex);
-                output.AddFeature("dl_pattern_score", patternScore);
+                output.AddFeature("06_dl_pattern_score", patternScore);
 
                 var cycleStrength = DetectCyclicBehavior(bars, currentIndex);
-                output.AddFeature("dl_cycle_strength", cycleStrength);
+                output.AddFeature("06_dl_cycle_strength", cycleStrength);
             }
 
             // ===== AUTOENCODER-LIKE FEATURES =====
             // Dimensionality reduction representation
             var bottleneck = CalculateBottleneckRepresentation(bars, currentIndex);
-            output.AddFeature("dl_bottleneck_feat", bottleneck);
+            output.AddFeature("06_dl_bottleneck_feat", bottleneck);
 
             // Reconstruction error (anomaly detection)
             var reconstructionError = CalculateReconstructionError(bars, currentIndex);
-            output.AddFeature("dl_reconstruction_error", reconstructionError);
+            output.AddFeature("06_dl_reconstruction_error", reconstructionError);
 
             // ===== MULTI-SCALE TEMPORAL FEATURES =====
             // Features at different time resolutions
@@ -129,71 +129,71 @@ namespace ForexFeatureGenerator.Features.Advanced
                 foreach (var scale in scales)
                 {
                     var multiScaleFeat = CalculateMultiScaleFeature(bars, currentIndex, scale);
-                    output.AddFeature($"dl_multiscale_{scale}", multiScaleFeat);
+                    output.AddFeature($"06_dl_multiscale_{scale}", multiScaleFeat);
                 }
             }
 
             // ===== SEQUENCE-TO-SEQUENCE FEATURES =====
             // Encoder-decoder style features
             var encodedSeq = EncodeSequence(bars, currentIndex, 20);
-            output.AddFeature("dl_encoded_seq", encodedSeq);
+            output.AddFeature("06_dl_encoded_seq", encodedSeq);
 
             var decodedState = DecodeToCurrentState(bars, currentIndex);
-            output.AddFeature("dl_decoded_state", decodedState);
+            output.AddFeature("06_dl_decoded_state", decodedState);
 
             // ===== GRAPH-LIKE FEATURES =====
             // Time series as graph nodes with edges
             var nodeImportance = CalculateNodeImportance(bars, currentIndex);
-            output.AddFeature("dl_node_importance", nodeImportance);
+            output.AddFeature("06_dl_node_importance", nodeImportance);
 
             var edgeStrength = CalculateAverageEdgeStrength(bars, currentIndex);
-            output.AddFeature("dl_edge_strength", edgeStrength);
+            output.AddFeature("06_dl_edge_strength", edgeStrength);
 
             // ===== TRANSFORMER-LIKE FEATURES =====
             // Positional encoding
             var posEncoding = CalculatePositionalEncoding(currentIndex);
-            output.AddFeature("dl_pos_encoding_sin", posEncoding.sin);
-            output.AddFeature("dl_pos_encoding_cos", posEncoding.cos);
+            output.AddFeature("06_dl_pos_encoding_sin", posEncoding.sin);
+            output.AddFeature("06_dl_pos_encoding_cos", posEncoding.cos);
 
             // Self-attention across multiple heads
             var multiHeadAttention = CalculateMultiHeadAttention(bars, currentIndex);
-            output.AddFeature("dl_multihead_attention", multiHeadAttention);
+            output.AddFeature("06_dl_multihead_attention", multiHeadAttention);
 
             // ===== RESIDUAL CONNECTIONS =====
             // Residual features (current vs predicted from past)
             var predicted = PredictFromHistory(bars, currentIndex);
             var residual = (double)bar.Close - predicted;
-            output.AddFeature("dl_residual", residual * 10000);
-            output.AddFeature("dl_residual_ratio", SafeDiv(residual, predicted));
+            output.AddFeature("06_dl_residual", residual * 10000);
+            output.AddFeature("06_dl_residual_ratio", SafeDiv(residual, predicted));
 
             // ===== LAYER NORMALIZATION =====
             // Normalized features across the sequence
             var layerNorm = CalculateLayerNormalization(bars, currentIndex);
-            output.AddFeature("dl_layer_norm", layerNorm);
+            output.AddFeature("06_dl_layer_norm", layerNorm);
 
             // ===== DROPOUT-LIKE FEATURES =====
             // Feature importance through random dropping
             var robustness = CalculateFeatureRobustness(bars, currentIndex);
-            output.AddFeature("dl_feature_robustness", robustness);
+            output.AddFeature("06_dl_feature_robustness", robustness);
 
             // ===== SEQUENCE COMPLEXITY =====
             // Measure of sequence predictability
             if (currentIndex >= 30)
             {
                 var complexity = CalculateSequenceComplexity(bars, currentIndex);
-                output.AddFeature("dl_sequence_complexity", complexity);
+                output.AddFeature("06_dl_sequence_complexity", complexity);
 
                 var entropy = CalculateSequenceEntropy(bars, currentIndex);
-                output.AddFeature("dl_sequence_entropy", entropy);
+                output.AddFeature("06_dl_sequence_entropy", entropy);
             }
 
             // ===== TEMPORAL DIFFERENCE =====
             // TD-learning inspired features
             var tdError = CalculateTDError(bars, currentIndex);
-            output.AddFeature("dl_td_error", tdError);
+            output.AddFeature("06_dl_td_error", tdError);
 
             var tdTarget = CalculateTDTarget(bars, currentIndex);
-            output.AddFeature("dl_td_target", tdTarget);
+            output.AddFeature("06_dl_td_target", tdTarget);
         }
 
         private double[] ExtractPriceSequence(IReadOnlyList<OhlcBar> bars, int currentIndex, int length)

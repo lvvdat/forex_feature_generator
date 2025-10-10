@@ -36,21 +36,21 @@ namespace ForexFeatureGenerator.Features.Core
             // Critical for adapting predictions to market conditions
 
             var (regimeType, regimeConfidence) = DetectMarketRegime(bars, currentIndex);
-            output.AddFeature("regime_type", regimeType);
-            output.AddFeature("regime_confidence", regimeConfidence);
+            output.AddFeature("02_regime_type", regimeType);
+            output.AddFeature("02_regime_confidence", regimeConfidence);
 
             // Regime-specific directional bias
             var regimeBias = CalculateRegimeBias(regimeType, bars, currentIndex);
-            output.AddFeature("regime_directional_bias", regimeBias);
+            output.AddFeature("02_regime_directional_bias", regimeBias);
 
             // Regime transition probability
             var transitionProb = CalculateRegimeTransition(_regimeHistory);
-            output.AddFeature("regime_transition_prob", transitionProb);
+            output.AddFeature("02_regime_transition_prob", transitionProb);
 
             // Regime duration and stability
             var (duration, stability) = CalculateRegimeStability(_regimeHistory, regimeType);
-            output.AddFeature("regime_duration_norm", Sigmoid(duration / 20.0));
-            output.AddFeature("regime_stability", stability);
+            output.AddFeature("02_regime_duration_norm", Sigmoid(duration / 20.0));
+            output.AddFeature("02_regime_stability", stability);
 
             // ===== 2. VOLATILITY REGIME FEATURES =====
             // Volatility affects label probability distributions
@@ -60,32 +60,32 @@ namespace ForexFeatureGenerator.Features.Core
 
             // Volatility regime classification
             var volRegime = ClassifyVolatilityRegime(currentVol, _volatilityHistory);
-            output.AddFeature("vol_regime_type", volRegime);
+            output.AddFeature("02_vol_regime_type", volRegime);
 
             // Volatility trend (expanding/contracting)
             var volTrend = CalculateVolatilityTrend(_volatilityHistory);
-            output.AddFeature("vol_trend", volTrend);
-            output.AddFeature("vol_expansion_signal", volTrend > 0.3 ? 1.0 : volTrend < -0.3 ? -1.0 : 0.0);
+            output.AddFeature("02_vol_trend", volTrend);
+            output.AddFeature("02_vol_expansion_signal", volTrend > 0.3 ? 1.0 : volTrend < -0.3 ? -1.0 : 0.0);
 
             // ===== 3. TREND REGIME FEATURES =====
             // Trend characteristics affect directional probabilities
 
             // Multi-timeframe trend alignment
             var (trendAlignment, trendStrength) = CalculateMultiTimeframeTrend(bars, currentIndex);
-            output.AddFeature("trend_mtf_alignment", trendAlignment);
-            output.AddFeature("trend_mtf_strength", trendStrength);
+            output.AddFeature("02_trend_mtf_alignment", trendAlignment);
+            output.AddFeature("02_trend_mtf_strength", trendStrength);
 
             // Trend efficiency (Kaufman)
             var efficiency = CalculateKaufmanEfficiency(bars, currentIndex, 10);
-            output.AddFeature("trend_efficiency", efficiency);
+            output.AddFeature("02_trend_efficiency", efficiency);
 
             // Trend quality metrics
             var trendQuality = CalculateTrendQuality(bars, currentIndex);
-            output.AddFeature("trend_quality", trendQuality);
+            output.AddFeature("02_trend_quality", trendQuality);
 
             // Trend exhaustion signals
             var exhaustion = DetectTrendExhaustion(bars, currentIndex);
-            output.AddFeature("trend_exhaustion", exhaustion);
+            output.AddFeature("02_trend_exhaustion", exhaustion);
 
             // ===== 4. CYCLICAL & SEASONAL PATTERNS =====
             // Time-based patterns affect direction
@@ -94,66 +94,66 @@ namespace ForexFeatureGenerator.Features.Core
 
             // Cyclical components (simplified)
             var cyclicalPhase = CalculateCyclicalPhase(bars, currentIndex);
-            output.AddFeature("cyclical_phase", cyclicalPhase);
+            output.AddFeature("02_cyclical_phase", cyclicalPhase);
 
             // ===== 5. MARKET STRESS INDICATORS =====
             // Stress conditions affect prediction reliability
 
             // Stress index composite
             var stressIndex = CalculateMarketStress(bars, currentIndex);
-            output.AddFeature("market_stress", stressIndex);
+            output.AddFeature("02_market_stress", stressIndex);
 
             // Risk on/off sentiment
             var riskSentiment = CalculateRiskSentiment(bars, currentIndex);
-            output.AddFeature("risk_sentiment", riskSentiment);
+            output.AddFeature("02_risk_sentiment", riskSentiment);
 
             // Correlation breakdown detection
             var corrBreakdown = DetectCorrelationBreakdown(bars, currentIndex);
-            output.AddFeature("correlation_breakdown", corrBreakdown);
+            output.AddFeature("02_correlation_breakdown", corrBreakdown);
 
             // ===== 6. FRACTAL & CHAOS FEATURES =====
             // Non-linear dynamics for complex markets
 
             // Fractal dimension (market complexity)
             var fractalDim = CalculateFractalDimension(bars, currentIndex);
-            output.AddFeature("fractal_dimension", (fractalDim - 1.5) / 0.5); // Normalize around 1.5
+            output.AddFeature("02_fractal_dimension", (fractalDim - 1.5) / 0.5); // Normalize around 1.5
 
             // Hurst exponent (persistence/mean-reversion)
             var hurst = CalculateHurstExponent(bars, currentIndex);
-            output.AddFeature("hurst_exponent", (hurst - 0.5) * 2); // Normalize: <0 mean-reverting, >0 trending
+            output.AddFeature("02_hurst_exponent", (hurst - 0.5) * 2); // Normalize: <0 mean-reverting, >0 trending
 
             // Lyapunov exponent proxy (chaos indicator)
             var lyapunov = CalculateLyapunovProxy(bars, currentIndex);
-            output.AddFeature("chaos_indicator", lyapunov);
+            output.AddFeature("02_chaos_indicator", lyapunov);
 
             // ===== 7. REGIME-ADAPTIVE SIGNALS =====
             // Combine regime information with directional indicators
 
             // Regime-weighted momentum
             var adaptiveMomentum = CalculateAdaptiveMomentum(bars, currentIndex, regimeType);
-            output.AddFeature("regime_momentum", adaptiveMomentum);
+            output.AddFeature("02_regime_momentum", adaptiveMomentum);
 
             // Regime-specific reversal probability
             var reversalProb = CalculateRegimeReversalProbability(
                 regimeType, efficiency, trendStrength, exhaustion);
-            output.AddFeature("regime_reversal_prob", reversalProb);
+            output.AddFeature("02_regime_reversal_prob", reversalProb);
 
             // Regime-adjusted directional signal
             var regimeSignal = CalculateRegimeAdjustedSignal(
                 bars, currentIndex, regimeType, volRegime);
-            output.AddFeature("regime_directional_signal", regimeSignal);
+            output.AddFeature("02_regime_directional_signal", regimeSignal);
 
             // ===== 8. COMPOSITE REGIME INDICATORS =====
 
             // Market condition score (favorable for trading)
             var marketCondition = CalculateMarketConditionScore(
                 regimeConfidence, trendQuality, efficiency, stressIndex);
-            output.AddFeature("market_condition_score", marketCondition);
+            output.AddFeature("02_market_condition_score", marketCondition);
 
             // Predictability index
             var predictability = CalculatePredictabilityIndex(
                 hurst, efficiency, regimeConfidence, corrBreakdown);
-            output.AddFeature("predictability_index", predictability);
+            output.AddFeature("02_predictability_index", predictability);
 
             // Master regime signal
             var masterRegime = CreateCompositeSignal(
@@ -162,7 +162,7 @@ namespace ForexFeatureGenerator.Features.Core
                 (riskSentiment, 0.2),
                 (regimeSignal, 0.3)
             );
-            output.AddFeature("regime_master_signal", masterRegime);
+            output.AddFeature("02_regime_master_signal", masterRegime);
 
             // Update history
             _regimeHistory.Add(new RegimeSnapshot

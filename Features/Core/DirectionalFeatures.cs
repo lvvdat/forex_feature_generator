@@ -33,85 +33,85 @@ namespace ForexFeatureGenerator.Features.Core
             // Short-term momentum (5-bar) - normalized
             var momentum5 = close - (double)bars[currentIndex - 5].Close;
             var momentumZ5 = CalculateMomentumZScore(bars, currentIndex, 5);
-            output.AddFeature("dir_momentum_z5", momentumZ5);
-            output.AddFeature("dir_momentum_signal_5", CreateDirectionalSignal(momentumZ5, 1.5, -1.5));
+            output.AddFeature("01_dir_momentum_z5", momentumZ5);
+            output.AddFeature("01_dir_momentum_signal_5", CreateDirectionalSignal(momentumZ5, 1.5, -1.5));
 
             // Medium-term momentum (10-bar)
             var momentumZ10 = CalculateMomentumZScore(bars, currentIndex, 10);
-            output.AddFeature("dir_momentum_z10", momentumZ10);
-            output.AddFeature("dir_momentum_signal_10", CreateDirectionalSignal(momentumZ10, 1.0, -1.0));
+            output.AddFeature("01_dir_momentum_z10", momentumZ10);
+            output.AddFeature("01_dir_momentum_signal_10", CreateDirectionalSignal(momentumZ10, 1.0, -1.0));
 
             // Momentum acceleration (2nd derivative)
             var momentumAccel = CalculateMomentumAcceleration(bars, currentIndex);
-            output.AddFeature("dir_momentum_accel", momentumAccel);
-            output.AddFeature("dir_momentum_accel_signal", CreateDirectionalSignal(momentumAccel, 0.5, -0.5));
+            output.AddFeature("01_dir_momentum_accel", momentumAccel);
+            output.AddFeature("01_dir_momentum_accel_signal", CreateDirectionalSignal(momentumAccel, 0.5, -0.5));
 
             // Momentum quality (consistency of direction)
             var momentumQuality = CalculateMomentumQualityScore(bars, currentIndex);
-            output.AddFeature("dir_momentum_quality", momentumQuality);
+            output.AddFeature("01_dir_momentum_quality", momentumQuality);
 
             // ===== 2. PRICE ACTION DIRECTIONAL FEATURES =====
             // Based on candlestick patterns and price structure
 
             // Directional candle strength
             var candleDirection = CalculateCandleDirection(bar);
-            output.AddFeature("dir_candle_direction", candleDirection);
+            output.AddFeature("01_dir_candle_direction", candleDirection);
 
             // Multi-bar directional pattern
             var patternDirection = CalculateMultiBarPattern(bars, currentIndex);
-            output.AddFeature("dir_pattern_strength", patternDirection);
+            output.AddFeature("01_dir_pattern_strength", patternDirection);
 
             // Higher high/lower low sequence
             var hhllSignal = CalculateHHLLSignal(bars, currentIndex);
-            output.AddFeature("dir_hhll_signal", hhllSignal);
+            output.AddFeature("01_dir_hhll_signal", hhllSignal);
 
             // Price position relative to recent range
             var pricePosition = CalculatePricePosition(bars, currentIndex, 20);
-            output.AddFeature("dir_price_position", pricePosition);
-            output.AddFeature("dir_price_breakout", Math.Abs(pricePosition) > 0.8 ? Math.Sign(pricePosition) : 0);
+            output.AddFeature("01_dir_price_position", pricePosition);
+            output.AddFeature("01_dir_price_breakout", Math.Abs(pricePosition) > 0.8 ? Math.Sign(pricePosition) : 0);
 
             // ===== 3. VOLUME-BASED DIRECTIONAL FEATURES =====
             // Volume confirms direction
 
             var volumeDirection = CalculateVolumeDirection(bars[currentIndex]);
-            output.AddFeature("dir_volume_direction", volumeDirection);
+            output.AddFeature("01_dir_volume_direction", volumeDirection);
 
             // Volume-weighted directional pressure
             var volumePressure = CalculateVolumePressure(bars, currentIndex);
-            output.AddFeature("dir_volume_pressure", volumePressure);
-            output.AddFeature("dir_volume_signal", CreateDirectionalSignal(volumePressure, 0.3, -0.3));
+            output.AddFeature("01_dir_volume_pressure", volumePressure);
+            output.AddFeature("01_dir_volume_signal", CreateDirectionalSignal(volumePressure, 0.3, -0.3));
 
             // Volume momentum correlation
             var volumeMomentumCorr = CalculateVolumeMomentumCorrelation(bars, currentIndex);
-            output.AddFeature("dir_vol_mom_correlation", volumeMomentumCorr);
+            output.AddFeature("01_dir_vol_mom_correlation", volumeMomentumCorr);
 
             // ===== 4. TREND STRENGTH FEATURES =====
             // Identifies strong directional moves vs choppy markets
 
             // ADX-based trend strength
             var trendStrength = CalculateTrendStrength(bars, currentIndex);
-            output.AddFeature("dir_trend_strength", trendStrength);
+            output.AddFeature("01_dir_trend_strength", trendStrength);
 
             // Directional movement
             var (dmPlus, dmMinus) = CalculateDirectionalMovement(bars, currentIndex);
-            output.AddFeature("dir_dm_plus", dmPlus);
-            output.AddFeature("dir_dm_minus", dmMinus);
-            output.AddFeature("dir_dm_signal", dmPlus > dmMinus ? 1.0 : dmMinus > dmPlus ? -1.0 : 0.0);
+            output.AddFeature("01_dir_dm_plus", dmPlus);
+            output.AddFeature("01_dir_dm_minus", dmMinus);
+            output.AddFeature("01_dir_dm_signal", dmPlus > dmMinus ? 1.0 : dmMinus > dmPlus ? -1.0 : 0.0);
 
             // Trend efficiency (how directly price moves)
             var efficiency = CalculateTrendEfficiency(bars, currentIndex, 10);
-            output.AddFeature("dir_trend_efficiency", efficiency);
+            output.AddFeature("01_dir_trend_efficiency", efficiency);
 
             // ===== 5. SUPPORT/RESISTANCE PROXIMITY =====
             // Distance from key levels affects direction probability
 
             var (supportDist, resistanceDist) = CalculateSRDistance(bars, currentIndex);
-            output.AddFeature("dir_support_distance_norm", supportDist);
-            output.AddFeature("dir_resistance_distance_norm", resistanceDist);
+            output.AddFeature("01_dir_support_distance_norm", supportDist);
+            output.AddFeature("01_dir_resistance_distance_norm", resistanceDist);
 
             // SR bounce probability
             var bounceProbability = CalculateBounceProbability(supportDist, resistanceDist);
-            output.AddFeature("dir_bounce_probability", bounceProbability);
+            output.AddFeature("01_dir_bounce_probability", bounceProbability);
 
             // ===== 6. COMPOSITE DIRECTIONAL SIGNALS =====
             // Combines multiple indicators for robust prediction
@@ -124,7 +124,7 @@ namespace ForexFeatureGenerator.Features.Core
                 (patternDirection, 0.15),
                 (dmPlus - dmMinus, 0.15)
             );
-            output.AddFeature("dir_composite_primary", primaryComposite);
+            output.AddFeature("01_dir_composite_primary", primaryComposite);
 
             // Confirmation composite (for high confidence trades)
             var confirmationComposite = CreateCompositeSignal(
@@ -133,30 +133,30 @@ namespace ForexFeatureGenerator.Features.Core
                 (efficiency, 0.25),
                 (trendStrength > 0.3 ? primaryComposite : 0, 0.25)
             );
-            output.AddFeature("dir_composite_confirmation", confirmationComposite);
+            output.AddFeature("01_dir_composite_confirmation", confirmationComposite);
 
             // Final directional probability
             var directionalProb = CalculateDirectionalProbability(primaryComposite, confirmationComposite, trendStrength);
-            output.AddFeature("dir_probability", directionalProb);
+            output.AddFeature("01_dir_probability", directionalProb);
 
             // Signal confidence score
             var confidence = Math.Abs(directionalProb) * trendStrength * momentumQuality;
-            output.AddFeature("dir_confidence", confidence);
+            output.AddFeature("01_dir_confidence", confidence);
 
             // ===== 7. REVERSAL DETECTION FEATURES =====
             // Identifies potential direction changes
 
             // Momentum divergence
             var divergence = CalculateMomentumDivergence(bars, currentIndex);
-            output.AddFeature("dir_divergence", divergence);
+            output.AddFeature("01_dir_divergence", divergence);
 
             // Exhaustion signal
             var exhaustion = CalculateExhaustionSignal(bars, currentIndex);
-            output.AddFeature("dir_exhaustion", exhaustion);
+            output.AddFeature("01_dir_exhaustion", exhaustion);
 
             // Mean reversion probability
             var meanReversionProb = CalculateMeanReversionProbability(bars, currentIndex);
-            output.AddFeature("dir_mean_reversion_prob", meanReversionProb);
+            output.AddFeature("01_dir_mean_reversion_prob", meanReversionProb);
         }
 
         // ===== HELPER METHODS =====
