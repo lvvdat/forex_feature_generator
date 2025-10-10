@@ -223,7 +223,7 @@ namespace ForexFeatureGenerator
                             {
                                 if (barsProcessed > warmupBars)
                                 {
-                                    if (features.Features.Count != 294)
+                                    if (features.Features.Count != 238)
                                     {
                                         Log($"  ⚠️ Not enough features generated at bar {barsProcessed} ({features.Features.Count})", ConsoleColor.Yellow);
                                     }

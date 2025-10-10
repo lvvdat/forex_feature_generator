@@ -53,7 +53,6 @@ namespace ForexFeatureGenerator.Features.Core
             var cvd = CalculateCVD(bars, currentIndex, 10);
             var cvdNormalized = NormalizeCVD(cvd, bars, currentIndex);
             output.AddFeature("03_micro_cvd_normalized", cvdNormalized);
-            output.AddFeature("03_micro_cvd_signal", CreateDirectionalSignal(cvdNormalized, 0.5, -0.5));
 
             // Volume-weighted order flow
             var vwof = CalculateVolumeWeightedOrderFlow(bars, currentIndex);

@@ -41,8 +41,6 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             var volumeSeq = ExtractVolumeSequence(bars, currentIndex, 10);
             var volumeEmbedding = CalculateSequenceEmbedding(volumeSeq);
-            output.AddFeature("06_dl_volume_embedding", volumeEmbedding);
-
             // Combined multi-modal embedding
             output.AddFeature("06_dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
 
@@ -71,7 +69,6 @@ namespace ForexFeatureGenerator.Features.Advanced
                 {
                     var convOutput = ApplyTemporalConvolution(bars, currentIndex, kernelSize);
                     output.AddFeature($"06_dl_conv_{kernelSize}_price", convOutput.priceConv);
-                    output.AddFeature($"06_dl_conv_{kernelSize}_volume", convOutput.volumeConv);
                 }
             }
 
@@ -79,12 +76,10 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Max pooling
             var (maxPoolPrice, maxPoolVolume) = ApplyMaxPooling(bars, currentIndex, 20, 5);
             output.AddFeature("06_dl_maxpool_price", maxPoolPrice);
-            output.AddFeature("06_dl_maxpool_volume", maxPoolVolume);
 
             // Average pooling
             var (avgPoolPrice, avgPoolVolume) = ApplyAveragePooling(bars, currentIndex, 20, 5);
             output.AddFeature("06_dl_avgpool_price", avgPoolPrice);
-            output.AddFeature("06_dl_avgpool_volume", avgPoolVolume);
 
             // ===== RECURRENT FEATURES (LSTM-like) =====
             // Simulate hidden state evolution

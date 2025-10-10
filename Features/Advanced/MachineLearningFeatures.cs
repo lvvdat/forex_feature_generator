@@ -88,9 +88,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("07_ml_price_to_sma20_ratio", SafeDiv(close, sma20));
             output.AddFeature("07_ml_price_to_ema20_ratio", SafeDiv(close, ema20));
 
-            // EMA/SMA ratio (trend quality indicator)
-            output.AddFeature("07_ml_ema_sma_ratio", SafeDiv(ema20, sma20));
-
             // Volume ratio to various averages
             if (_volumeHistory.Count >= 20)
             {
@@ -206,21 +203,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             // Percentage changes
             output.AddFeature("07_ml_pct_change_lag_1", SafeDiv(close - (double)bars[currentIndex - 1].Close, (double)bars[currentIndex - 1].Close) * 100);
             output.AddFeature("07_ml_pct_change_lag_5", SafeDiv(close - (double)bars[currentIndex - 5].Close, (double)bars[currentIndex - 5].Close) * 100);
-
-            // ===== TECHNICAL INDICATOR COMBINATIONS =====
-            if (currentIndex >= 50)
-            {
-                // RSI-Stochastic combination
-                var rsi = CalculateRSI(bars, currentIndex, 14);
-                var stoch = CalculateStochastic(bars, currentIndex, 14);
-                output.AddFeature("07_ml_rsi_stoch_avg", (rsi + stoch) / 2);
-                output.AddFeature("07_ml_rsi_stoch_diff", Math.Abs(rsi - stoch));
-
-                // MACD-ADX combination
-                var macd = CalculateMACD(bars, currentIndex);
-                var adx = CalculateADX(bars, currentIndex, 14);
-                output.AddFeature("07_ml_macd_adx_product", macd * adx);
-            }
 
             // Update histories
             _priceHistory.Add(close);

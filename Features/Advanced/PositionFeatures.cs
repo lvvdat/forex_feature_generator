@@ -16,7 +16,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override int Priority => 5;
 
         private readonly RollingWindow<PositionSnapshot> _positionHistory = new(100);
-        private readonly RollingWindow<TradeSetup> _setupHistory = new(50);
+        //private readonly RollingWindow<TradeSetup> _setupHistory = new(50);
 
         // Scalping parameters (from label config: 3.5/2.5 pips)
         private const double TRAILING_STOP_ACTIVATION_PIPS = 3.5;
@@ -106,7 +106,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("05_pos_support_strength", structure.supportStrength);
             output.AddFeature("05_pos_resistance_strength", structure.resistanceStrength);
             output.AddFeature("05_pos_trend_alignment", structure.trendAlignment);
-            output.AddFeature("05_pos_momentum_alignment", structure.momentumAlignment);
 
             // ===== OPTIMAL ENTRY LEVELS =====
             var optimalEntry = FindOptimalEntryLevels(bars, currentIndex);
@@ -137,18 +136,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             // ===== TRADE EXPECTANCY =====
             output.AddFeature("05_pos_long_expectancy", CalculateTradeExpectancy(bars, currentIndex, true));
             output.AddFeature("05_pos_short_expectancy", CalculateTradeExpectancy(bars, currentIndex, false));
-
-            // ===== POSITION CORRELATION =====
-            // How correlated is the position with recent successful setups
-            if (_setupHistory.Count >= 10)
-            {
-                var correlation = CalculateSetupCorrelation(bars, currentIndex);
-                output.AddFeature("05_pos_setup_correlation", correlation);
-            }
-            else
-            {
-                output.AddFeature("05_pos_setup_correlation", 0.0);
-            }
 
             // ===== ADVERSE SELECTION RISK =====
             output.AddFeature("05_pos_adverse_selection", CalculateAdverseSelectionRisk(bars, currentIndex));
@@ -562,24 +549,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (winProb * avgWin) - ((1 - winProb) * avgLoss);
         }
 
-        private double CalculateSetupCorrelation(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Compare current setup to recent successful setups
-            var currentRsi = CalculateRSI(bars, currentIndex, 14);
-            var currentATR = CalculateATR(bars, currentIndex, 14);
-
-            var similarities = new List<double>();
-
-            foreach (var setup in _setupHistory.GetValues().Take(10))
-            {
-                // Simple similarity metric
-                var similarity = 1.0 / (1.0 + Math.Abs(setup.ExpectedProfit - currentATR));
-                similarities.Add(similarity);
-            }
-
-            return similarities.Count > 0 ? similarities.Average() : 0.5;
-        }
-
         private double CalculateAdverseSelectionRisk(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Risk of being on wrong side
@@ -740,7 +709,6 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override void Reset()
         {
             _positionHistory.Clear();
-            _setupHistory.Clear();
         }
     }
 }

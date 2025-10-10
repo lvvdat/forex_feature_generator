@@ -83,10 +83,6 @@ namespace ForexFeatureGenerator.Features.Core
             var trendQuality = CalculateTrendQuality(bars, currentIndex);
             output.AddFeature("02_trend_quality", trendQuality);
 
-            // Trend exhaustion signals
-            var exhaustion = DetectTrendExhaustion(bars, currentIndex);
-            output.AddFeature("02_trend_exhaustion", exhaustion);
-
             // ===== 4. CYCLICAL & SEASONAL PATTERNS =====
             // Time-based patterns affect direction
 
@@ -114,10 +110,6 @@ namespace ForexFeatureGenerator.Features.Core
             // ===== 6. FRACTAL & CHAOS FEATURES =====
             // Non-linear dynamics for complex markets
 
-            // Fractal dimension (market complexity)
-            var fractalDim = CalculateFractalDimension(bars, currentIndex);
-            output.AddFeature("02_fractal_dimension", (fractalDim - 1.5) / 0.5); // Normalize around 1.5
-
             // Hurst exponent (persistence/mean-reversion)
             var hurst = CalculateHurstExponent(bars, currentIndex);
             output.AddFeature("02_hurst_exponent", (hurst - 0.5) * 2); // Normalize: <0 mean-reverting, >0 trending
@@ -132,11 +124,6 @@ namespace ForexFeatureGenerator.Features.Core
             // Regime-weighted momentum
             var adaptiveMomentum = CalculateAdaptiveMomentum(bars, currentIndex, regimeType);
             output.AddFeature("02_regime_momentum", adaptiveMomentum);
-
-            // Regime-specific reversal probability
-            var reversalProb = CalculateRegimeReversalProbability(
-                regimeType, efficiency, trendStrength, exhaustion);
-            output.AddFeature("02_regime_reversal_prob", reversalProb);
 
             // Regime-adjusted directional signal
             var regimeSignal = CalculateRegimeAdjustedSignal(
@@ -378,29 +365,6 @@ namespace ForexFeatureGenerator.Features.Core
             return (consistency + smoothness) / 2;
         }
 
-        private double DetectTrendExhaustion(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            if (currentIndex < 30) return 0;
-
-            // Check for overextension
-            var sma20 = CalculateSMA(bars, currentIndex, 20);
-            var close = (double)bars[currentIndex].Close;
-            var deviation = (close - sma20) / sma20;
-
-            // Exhaustion if > 2% from mean
-            if (Math.Abs(deviation) > 0.02)
-            {
-                // Check momentum weakening
-                var momentum5 = (double)(bars[currentIndex].Close - bars[currentIndex - 5].Close);
-                var momentum10 = (double)(bars[currentIndex - 5].Close - bars[currentIndex - 10].Close);
-
-                if (Math.Abs(momentum5) < Math.Abs(momentum10) * 0.5)
-                    return -Math.Sign(deviation);  // Exhaustion signal
-            }
-
-            return 0;
-        }
-
         // ===== TIME & SEASONAL METHODS =====
 
         private double CalculateCyclicalPhase(IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -488,54 +452,6 @@ namespace ForexFeatureGenerator.Features.Core
         }
 
         // ===== FRACTAL & CHAOS METHODS =====
-
-        private double CalculateFractalDimension(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Simplified box-counting dimension
-            if (currentIndex < 50) return 1.5;
-
-            var prices = new double[50];
-            for (int i = 0; i < 50; i++)
-            {
-                prices[i] = (double)bars[currentIndex - 49 + i].Close;
-            }
-
-            var maxPrice = prices.Max();
-            var minPrice = prices.Min();
-            var range = maxPrice - minPrice;
-
-            if (range < 1e-10) return 1.5;
-
-            // Count boxes at different scales
-            int[] boxSizes = { 2, 5, 10, 25 };
-            var boxCounts = new List<double>();
-
-            foreach (var size in boxSizes)
-            {
-                var boxes = new HashSet<(int, int)>();
-                var step = 50 / size;
-
-                for (int i = 0; i < 49; i++)
-                {
-                    var x = i / step;
-                    var y = (int)((prices[i] - minPrice) / range * size);
-                    boxes.Add((x, y));
-                }
-
-                boxCounts.Add(boxes.Count);
-            }
-
-            // Log-log regression for fractal dimension
-            var logSizes = boxSizes.Select(s => Math.Log(s)).ToArray();
-            var logCounts = boxCounts.Select(c => Math.Log(c)).ToArray();
-
-            var slope = -CalculateSlope(logCounts.Zip(logSizes, (c, s) => new { c, s })
-                                              .OrderBy(p => p.s)
-                                              .Select(p => p.c)
-                                              .ToArray());
-
-            return Math.Max(1.0, Math.Min(2.0, slope));
-        }
 
         private double CalculateHurstExponent(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
@@ -627,26 +543,6 @@ namespace ForexFeatureGenerator.Features.Core
             }
 
             return 0;
-        }
-
-        private double CalculateRegimeReversalProbability(double regime, double efficiency,
-            double trendStrength, double exhaustion)
-        {
-            if (regime == 0)  // Range-bound
-            {
-                // High reversal probability at range extremes
-                return 0.5 + exhaustion * 0.3;
-            }
-            else if (regime == 1)  // Trending
-            {
-                // Low reversal probability unless exhausted
-                return Math.Max(0, exhaustion * 0.5 - trendStrength * 0.3);
-            }
-            else  // Volatile
-            {
-                // Moderate reversal probability
-                return 0.3;
-            }
         }
 
         private double CalculateRegimeAdjustedSignal(IReadOnlyList<OhlcBar> bars, int currentIndex,
