@@ -39,11 +39,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var priceEmbedding = CalculateSequenceEmbedding(priceSeq);
             output.AddFeature("06_dl_price_embedding", priceEmbedding);
 
-            var volumeSeq = ExtractVolumeSequence(bars, currentIndex, 10);
-            var volumeEmbedding = CalculateSequenceEmbedding(volumeSeq);
-            // Combined multi-modal embedding
-            output.AddFeature("06_dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
-
             // ===== ATTENTION-LIKE MECHANISMS =====
             // Calculate attention weights for recent history
             var attentionWeights = CalculateAttentionWeights(bars, currentIndex, 20);
@@ -149,10 +144,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var posEncoding = CalculatePositionalEncoding(currentIndex);
             output.AddFeature("06_dl_pos_encoding_sin", posEncoding.sin);
             output.AddFeature("06_dl_pos_encoding_cos", posEncoding.cos);
-
-            // Self-attention across multiple heads
-            var multiHeadAttention = CalculateMultiHeadAttention(bars, currentIndex);
-            output.AddFeature("06_dl_multihead_attention", multiHeadAttention);
 
             // ===== RESIDUAL CONNECTIONS =====
             // Residual features (current vs predicted from past)
@@ -543,16 +534,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var angle = position / Math.Pow(10000, 2.0 / dimension);
 
             return (Math.Sin(angle), Math.Cos(angle));
-        }
-
-        private double CalculateMultiHeadAttention(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Multi-head attention (simplified with 3 heads)
-            var head1 = CalculateAttentionWeights(bars, currentIndex, 20).Average();
-            var head2 = CalculateAttentionWeights(bars, currentIndex, 10).Average();
-            var head3 = CalculateAttentionWeights(bars, currentIndex, 5).Average();
-
-            return (head1 + head2 + head3) / 3;
         }
 
         private double PredictFromHistory(IReadOnlyList<OhlcBar> bars, int currentIndex)

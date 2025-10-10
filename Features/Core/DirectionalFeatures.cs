@@ -102,17 +102,6 @@ namespace ForexFeatureGenerator.Features.Core
             var efficiency = CalculateTrendEfficiency(bars, currentIndex, 10);
             output.AddFeature("01_dir_trend_efficiency", efficiency);
 
-            // ===== 5. SUPPORT/RESISTANCE PROXIMITY =====
-            // Distance from key levels affects direction probability
-
-            var (supportDist, resistanceDist) = CalculateSRDistance(bars, currentIndex);
-            output.AddFeature("01_dir_support_distance_norm", supportDist);
-            output.AddFeature("01_dir_resistance_distance_norm", resistanceDist);
-
-            // SR bounce probability
-            var bounceProbability = CalculateBounceProbability(supportDist, resistanceDist);
-            output.AddFeature("01_dir_bounce_probability", bounceProbability);
-
             // ===== 6. COMPOSITE DIRECTIONAL SIGNALS =====
             // Combines multiple indicators for robust prediction
 
@@ -432,38 +421,6 @@ namespace ForexFeatureGenerator.Features.Core
             }
 
             return SafeDiv(direction, volatility);
-        }
-
-        private (double supportDist, double resistanceDist) CalculateSRDistance(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            var close = (double)bars[currentIndex].Close;
-            var atr = CalculateATR(bars, currentIndex, 14);
-
-            // Find recent support (lowest low in last 20 bars)
-            double support = double.MaxValue;
-            double resistance = double.MinValue;
-
-            for (int i = currentIndex - 19; i <= currentIndex; i++)
-            {
-                support = Math.Min(support, (double)bars[i].Low);
-                resistance = Math.Max(resistance, (double)bars[i].High);
-            }
-
-            var supportDist = CalculateNormalizedDistance(close, support, atr);
-            var resistanceDist = CalculateNormalizedDistance(close, resistance, atr);
-
-            return (supportDist, resistanceDist);
-        }
-
-        private double CalculateBounceProbability(double supportDist, double resistanceDist)
-        {
-            // Near support = positive (bullish bounce)
-            if (Math.Abs(supportDist) < 0.5) return 0.5 + supportDist;
-
-            // Near resistance = negative (bearish bounce)
-            if (Math.Abs(resistanceDist) < 0.5) return -0.5 + resistanceDist;
-
-            return 0;
         }
 
         private double CalculateDirectionalProbability(double primary, double confirmation, double trendStrength)

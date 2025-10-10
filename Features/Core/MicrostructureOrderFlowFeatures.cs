@@ -104,10 +104,6 @@ namespace ForexFeatureGenerator.Features.Core
             var spreadVolumeRatio = SafeDiv(spreadBps, Math.Log(1 + bar.TickVolume));
             output.AddFeature("03_micro_spread_volume_ratio", Sigmoid(spreadVolumeRatio - 1));
 
-            // Effective spread (price impact proxy)
-            var effectiveSpread = CalculateEffectiveSpread(bar, bars, currentIndex);
-            output.AddFeature("03_micro_effective_spread", effectiveSpread);
-
             // ===== 4. TICK DYNAMICS FEATURES =====
             // Tick patterns reveal order flow dynamics
 
@@ -295,17 +291,6 @@ namespace ForexFeatureGenerator.Features.Core
             var stdDev = Math.Sqrt(values.Select(v => Math.Pow(v - mean, 2)).Average());
 
             return CalculateZScore(currentSpread, mean, stdDev);
-        }
-
-        private double CalculateEffectiveSpread(OhlcBar bar, IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Effective spread = 2 * |execution price - mid price|
-            // Using close as execution price proxy
-            var midPrice = (double)((bar.High + bar.Low) / 2);
-            var effectiveSpread = 2 * Math.Abs((double)bar.Close - midPrice);
-
-            // Normalize by price level
-            return SafeDiv(effectiveSpread, midPrice) * 10000;  // In basis points
         }
 
         private double CalculateTickIntensity(double currentRate, IReadOnlyList<OhlcBar> bars, int currentIndex)

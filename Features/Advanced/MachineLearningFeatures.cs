@@ -156,18 +156,6 @@ namespace ForexFeatureGenerator.Features.Advanced
                 output.AddFeature("07_ml_volume_percentile_50", 0.5);
             }
 
-            // ===== DISTANCE METRICS =====
-            if (currentIndex >= 50)
-            {
-                // Euclidean distance from recent mean state
-                var distanceFromMean = CalculateStateDistance(bars, currentIndex);
-                output.AddFeature("07_ml_state_distance_from_mean", distanceFromMean);
-
-                // Mahalanobis-like distance (scaled by volatility)
-                var scaledDistance = SafeDiv(distanceFromMean, CalculateATR(bars, currentIndex, 14));
-                output.AddFeature("07_ml_scaled_state_distance", scaledDistance);
-            }
-
             // ===== ENTROPY MEASURES =====
             if (currentIndex >= 30)
             {
@@ -409,30 +397,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var count = sorted.Count(v => v < target);
 
             return (double)count / values.Length;
-        }
-
-        private double CalculateStateDistance(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Calculate Euclidean distance from mean state
-            var recentPrices = new List<double>();
-            var recentVolumes = new List<double>();
-
-            for (int i = currentIndex - 19; i <= currentIndex; i++)
-            {
-                recentPrices.Add((double)bars[i].Close);
-                recentVolumes.Add(bars[i].TickVolume);
-            }
-
-            var priceMean = recentPrices.Average();
-            var volumeMean = recentVolumes.Average();
-
-            var currentPrice = (double)bars[currentIndex].Close;
-            var currentVolume = (double)bars[currentIndex].TickVolume;
-
-            var priceDistance = Math.Pow(currentPrice - priceMean, 2);
-            var volumeDistance = Math.Pow(currentVolume - volumeMean, 2);
-
-            return Math.Sqrt(priceDistance + volumeDistance);
         }
 
         private double CalculateLocalEntropy(double[] values)
