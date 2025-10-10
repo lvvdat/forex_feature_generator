@@ -52,11 +52,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             var normalizedVolume = SafeDiv(bar.TickVolume - _volumeRollingMean, _volumeRollingStd);
             output.AddFeature("07_ml_volume_zscore", normalizedVolume);
 
-            // ===== FEATURE INTERACTIONS =====
-            // Price-Volume interaction
-            var priceVolumeInteraction = normalizedPrice * normalizedVolume;
-            output.AddFeature("07_ml_price_volume_interaction", priceVolumeInteraction);
-
             // ===== POLYNOMIAL FEATURES =====
             // Quadratic price momentum
             var returns = Math.Log(close / (double)bars[currentIndex - 10].Close);

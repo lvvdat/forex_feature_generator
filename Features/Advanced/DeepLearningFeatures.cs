@@ -129,12 +129,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("06_dl_pos_encoding_sin", posEncoding.sin);
             output.AddFeature("06_dl_pos_encoding_cos", posEncoding.cos);
 
-            // ===== RESIDUAL CONNECTIONS =====
-            // Residual features (current vs predicted from past)
-            var predicted = PredictFromHistory(bars, currentIndex);
-            var residual = (double)bar.Close - predicted;
-            output.AddFeature("06_dl_residual", residual * 10000);
-
             // ===== LAYER NORMALIZATION =====
             // Normalized features across the sequence
             var layerNorm = CalculateLayerNormalization(bars, currentIndex);
@@ -155,14 +149,6 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var entropy = CalculateSequenceEntropy(bars, currentIndex);
                 output.AddFeature("06_dl_sequence_entropy", entropy);
             }
-
-            // ===== TEMPORAL DIFFERENCE =====
-            // TD-learning inspired features
-            var tdError = CalculateTDError(bars, currentIndex);
-            output.AddFeature("06_dl_td_error", tdError);
-
-            var tdTarget = CalculateTDTarget(bars, currentIndex);
-            output.AddFeature("06_dl_td_target", tdTarget);
         }
 
         private double[] ExtractPriceSequence(IReadOnlyList<OhlcBar> bars, int currentIndex, int length)
@@ -462,12 +448,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             return (Math.Sin(angle), Math.Cos(angle));
         }
 
-        private double PredictFromHistory(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Simple linear prediction
-            return CalculateSMA(bars, currentIndex, 5);
-        }
-
         private double CalculateLayerNormalization(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var prices = new List<double>();
@@ -549,36 +529,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             return entropy;
-        }
-
-        private double CalculateTDError(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // Temporal difference error
-            var reward = (double)(bars[currentIndex].Close - bars[currentIndex - 1].Close) * 10000;
-            var nextValue = (double)bars[currentIndex].Close;
-            var currentValue = (double)bars[currentIndex - 1].Close;
-
-            return reward + 0.99 * nextValue - currentValue;
-        }
-
-        private double CalculateTDTarget(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            // TD target for value estimation
-            if (currentIndex < 5) return 0;
-
-            var futureReward = 0.0;
-            var gamma = 0.95;
-
-            for (int i = 1; i <= 5; i++)
-            {
-                if (currentIndex - i >= 0)
-                {
-                    var reward = (double)(bars[currentIndex - i + 1].Close - bars[currentIndex - i].Close) * 10000;
-                    futureReward += Math.Pow(gamma, i - 1) * reward;
-                }
-            }
-
-            return futureReward;
         }
 
         public override void Reset()
