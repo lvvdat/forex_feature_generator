@@ -47,5 +47,4 @@
             return FeatureWeights.GetValueOrDefault(name, 1.0);
         }
     }
-
 }

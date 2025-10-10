@@ -200,17 +200,5 @@ namespace ForexFeatureGenerator.Features.Pipeline
         {
             return _aggregators.TryGetValue(timeframe, out var aggregator) ? aggregator : null;
         }
-
-        private double CalculateAgreement(List<double> signals)
-        {
-            if (!signals.Any()) return 0;
-
-            var positive = signals.Count(s => s > 0.1);
-            var negative = signals.Count(s => s < -0.1);
-            var total = signals.Count;
-
-            var agreement = Math.Max(positive, negative) / (double)total;
-            return positive > negative ? agreement : -agreement;
-        }
     }
 }
