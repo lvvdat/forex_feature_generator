@@ -14,7 +14,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "DeepLearning";
         public override string Category => "DL_Optimized";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 35;
+        public override int Priority => 7;
 
         private readonly RollingWindow<AttentionSnapshot> _attentionHistory = new(50);
 

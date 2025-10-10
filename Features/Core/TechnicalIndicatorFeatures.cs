@@ -12,7 +12,7 @@ namespace ForexFeatureGenerator.Features.Core
         public override string Name => "TechnicalIndicators";
         public override string Category => "Technical";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(1);
-        public override int Priority => 5;
+        public override int Priority => 4;
 
         private readonly RollingWindow<double> _rsiHistory = new(50);
         private readonly RollingWindow<double> _macdHistory = new(50);

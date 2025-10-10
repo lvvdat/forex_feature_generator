@@ -13,7 +13,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         public override string Name => "MachineLearning";
         public override string Category => "ML_Optimized";
         public override TimeSpan Timeframe => TimeSpan.FromMinutes(5);
-        public override int Priority => 30;
+        public override int Priority => 6;
 
         private readonly RollingWindow<double> _priceHistory = new(100);
         private readonly RollingWindow<double> _volumeHistory = new(100);
