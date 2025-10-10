@@ -148,7 +148,7 @@ namespace ForexFeatureGenerator
                 var m1Aggregator = pipeline.GetAggregator(TimeSpan.FromMinutes(1));
 
                 int barsProcessed = 0;
-                int warmupBars = 255;
+                int warmupBars = 260;
                 int futureTicksNeeded = LABEL_CONFIG.MaxFutureTicks;
 
                 var maxTicks = tickData.Count;
@@ -223,7 +223,7 @@ namespace ForexFeatureGenerator
                             {
                                 if (barsProcessed > warmupBars)
                                 {
-                                    if (features.Features.Count != 146)
+                                    if (features.Features.Count != 294)
                                     {
                                         Log($"  ⚠️ Not enough features generated at bar {barsProcessed} ({features.Features.Count})", ConsoleColor.Yellow);
                                     }
@@ -298,7 +298,16 @@ namespace ForexFeatureGenerator
                     Log($"  Processed {barsProcessed} M1 bars");
                     Log($"  Generated {labelResults.Count} feature vectors with labels");
 
+                    if (featureNames != null)
+                    {
+                        Log($"  Features: {string.Join(",", featureNames)}");
+                    }                        
+
                     AnalyzeGeneratedLabels(labelResults);
+                }
+                catch (Exception ex)
+                {
+                    Log($"\n  ⚠️ Error during feature/label generation: {ex.Message}", ConsoleColor.Red);
                 }
                 finally
                 {

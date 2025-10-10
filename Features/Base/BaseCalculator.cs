@@ -166,40 +166,6 @@ namespace ForexFeatureGenerator.Features.Core
             return SafeDiv(n * sumXY - sumX * sumY, n * sumX2 - sumX * sumX);
         }
 
-        /// <summary>
-        /// Calculates adaptive moving average for dynamic markets
-        /// </summary>
-        protected double CalculateAdaptiveMA(IReadOnlyList<OhlcBar> bars, int currentIndex,
-            int fastPeriod = 5, int slowPeriod = 20)
-        {
-            if (currentIndex < slowPeriod) return (double)bars[currentIndex].Close;
-
-            // Calculate efficiency ratio
-            var direction = Math.Abs((double)(bars[currentIndex].Close - bars[currentIndex - slowPeriod].Close));
-            var volatility = 0.0;
-
-            for (int i = currentIndex - slowPeriod + 1; i <= currentIndex; i++)
-            {
-                volatility += Math.Abs((double)(bars[i].Close - bars[i - 1].Close));
-            }
-
-            var efficiencyRatio = SafeDiv(direction, volatility, 0.5);
-
-            // Calculate smoothing constant
-            var fastSC = 2.0 / (fastPeriod + 1);
-            var slowSC = 2.0 / (slowPeriod + 1);
-            var sc = Math.Pow(efficiencyRatio * (fastSC - slowSC) + slowSC, 2);
-
-            // Calculate AMA
-            double ama = (double)bars[currentIndex - slowPeriod].Close;
-            for (int i = currentIndex - slowPeriod + 1; i <= currentIndex; i++)
-            {
-                ama = ama + sc * ((double)bars[i].Close - ama);
-            }
-
-            return ama;
-        }
-
         protected double CalculateTrueRange(IReadOnlyList<OhlcBar> bars, int index)
         {
             if (index < 1) return (double)(bars[index].High - bars[index].Low);

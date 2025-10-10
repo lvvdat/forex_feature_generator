@@ -66,39 +66,30 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // Volatility-Volume interaction
-            var volatility = CalculateATR(bars, 14, currentIndex);
+            var volatility = CalculateATR(bars, currentIndex, 14);
             var volVolInteraction = SafeDiv(volatility * bar.TickVolume, _volumeRollingMean);
             output.AddFeature("ml_volatility_volume_interaction", volVolInteraction);
 
             // ===== POLYNOMIAL FEATURES =====
             // Quadratic price momentum
-            if (currentIndex >= 10)
-            {
-                var returns = Math.Log(close / (double)bars[currentIndex - 10].Close);
-                output.AddFeature("ml_returns_squared", returns * returns);
-                output.AddFeature("ml_returns_cubed", returns * returns * returns);
-            }
+            var returns = Math.Log(close / (double)bars[currentIndex - 10].Close);
+            output.AddFeature("ml_returns_squared", returns * returns);
+            output.AddFeature("ml_returns_cubed", returns * returns * returns);
 
             // Volume concentration (Gini coefficient approximation)
-            if (currentIndex >= 20)
-            {
-                var volumeGini = CalculateVolumeConcentration(bars, currentIndex);
-                output.AddFeature("ml_volume_gini", volumeGini);
-            }
+            var volumeGini = CalculateVolumeConcentration(bars, currentIndex);
+            output.AddFeature("ml_volume_gini", volumeGini);
 
             // ===== RATIO FEATURES =====
-            if (currentIndex >= 20)
-            {
-                var sma20 = CalculateSMA(bars, 20, currentIndex);
-                var ema20 = CalculateEMA(bars, 20, currentIndex);
+            var sma20 = CalculateSMA(bars, currentIndex, 20);
+            var ema20 = CalculateEMA(bars, currentIndex, 20);
 
-                // Price to MA ratios
-                output.AddFeature("ml_price_to_sma20_ratio", SafeDiv(close, sma20));
-                output.AddFeature("ml_price_to_ema20_ratio", SafeDiv(close, ema20));
+            // Price to MA ratios
+            output.AddFeature("ml_price_to_sma20_ratio", SafeDiv(close, sma20));
+            output.AddFeature("ml_price_to_ema20_ratio", SafeDiv(close, ema20));
 
-                // EMA/SMA ratio (trend quality indicator)
-                output.AddFeature("ml_ema_sma_ratio", SafeDiv(ema20, sma20));
-            }
+            // EMA/SMA ratio (trend quality indicator)
+            output.AddFeature("ml_ema_sma_ratio", SafeDiv(ema20, sma20));
 
             // Volume ratio to various averages
             if (_volumeHistory.Count >= 20)
@@ -106,6 +97,10 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var vol5 = _volumeHistory.GetValues().Take(5).Average();
                 var vol20 = _volumeHistory.GetValues().Take(20).Average();
                 output.AddFeature("ml_volume_short_long_ratio", SafeDiv(vol5, vol20));
+            }
+            else
+            {
+                output.AddFeature("ml_volume_short_long_ratio", 0);
             }
 
             // ===== ROLLING STATISTICS =====
@@ -149,11 +144,19 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var pricePercentile = CalculatePercentileRank(_priceHistory.GetValues().Take(50).ToArray(), close);
                 output.AddFeature("ml_price_percentile_50", pricePercentile);
             }
+            else
+            {
+                output.AddFeature("ml_price_percentile_50", 0.5);
+            }
 
             if (_volumeHistory.Count >= 50)
             {
                 var volumePercentile = CalculatePercentileRank(_volumeHistory.GetValues().Take(50).ToArray(), bar.TickVolume);
                 output.AddFeature("ml_volume_percentile_50", volumePercentile);
+            }
+            else
+            {
+                output.AddFeature("ml_volume_percentile_50", 0.5);
             }
 
             // ===== DISTANCE METRICS =====
@@ -164,7 +167,7 @@ namespace ForexFeatureGenerator.Features.Advanced
                 output.AddFeature("ml_state_distance_from_mean", distanceFromMean);
 
                 // Mahalanobis-like distance (scaled by volatility)
-                var scaledDistance = SafeDiv(distanceFromMean, CalculateATR(bars, 14, currentIndex));
+                var scaledDistance = SafeDiv(distanceFromMean, CalculateATR(bars, currentIndex, 14));
                 output.AddFeature("ml_scaled_state_distance", scaledDistance);
             }
 
@@ -184,13 +187,6 @@ namespace ForexFeatureGenerator.Features.Advanced
                 output.AddFeature("ml_volume_entropy", volumeEntropy);
             }
 
-            // ===== REGIME INDICATORS =====
-            // Market regime classification (trending, ranging, volatile)
-            var (regimeType, regimeConfidence) = ClassifyMarketRegime(bars, currentIndex);
-            output.AddFeature("ml_regime_trending", regimeType == 1 ? regimeConfidence : 0);
-            output.AddFeature("ml_regime_ranging", regimeType == 0 ? regimeConfidence : 0);
-            output.AddFeature("ml_regime_volatile", regimeType == 2 ? regimeConfidence : 0);
-
             // ===== FEATURE ENGINEERING FOR GRADIENT BOOSTING =====
             // Binned features (categorical-like for tree-based models)
             output.AddFeature("ml_price_bin", BinValue(close, _priceRollingMean, _priceRollingStd));
@@ -203,36 +199,33 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("ml_hour_american", (hour >= 16 && hour < 24) ? 1.0 : 0.0);
 
             // ===== LAGGED FEATURES =====
-            if (currentIndex >= 5)
-            {
-                output.AddFeature("ml_price_lag_1", (double)bars[currentIndex - 1].Close);
-                output.AddFeature("ml_price_lag_3", (double)bars[currentIndex - 3].Close);
-                output.AddFeature("ml_price_lag_5", (double)bars[currentIndex - 5].Close);
+            output.AddFeature("ml_price_lag_1", (double)bars[currentIndex - 1].Close);
+            output.AddFeature("ml_price_lag_3", (double)bars[currentIndex - 3].Close);
+            output.AddFeature("ml_price_lag_5", (double)bars[currentIndex - 5].Close);
 
-                // Percentage changes
-                output.AddFeature("ml_pct_change_lag_1", SafeDiv(close - (double)bars[currentIndex - 1].Close, (double)bars[currentIndex - 1].Close) * 100);
-                output.AddFeature("ml_pct_change_lag_5", SafeDiv(close - (double)bars[currentIndex - 5].Close, (double)bars[currentIndex - 5].Close) * 100);
-            }
+            // Percentage changes
+            output.AddFeature("ml_pct_change_lag_1", SafeDiv(close - (double)bars[currentIndex - 1].Close, (double)bars[currentIndex - 1].Close) * 100);
+            output.AddFeature("ml_pct_change_lag_5", SafeDiv(close - (double)bars[currentIndex - 5].Close, (double)bars[currentIndex - 5].Close) * 100);
 
             // ===== TECHNICAL INDICATOR COMBINATIONS =====
             if (currentIndex >= 50)
             {
                 // RSI-Stochastic combination
-                var rsi = CalculateRSI(bars, 14, currentIndex);
-                var stoch = CalculateStochastic(bars, 14, currentIndex);
+                var rsi = CalculateRSI(bars, currentIndex, 14);
+                var stoch = CalculateStochastic(bars, currentIndex, 14);
                 output.AddFeature("ml_rsi_stoch_avg", (rsi + stoch) / 2);
                 output.AddFeature("ml_rsi_stoch_diff", Math.Abs(rsi - stoch));
 
                 // MACD-ADX combination
                 var macd = CalculateMACD(bars, currentIndex);
-                var adx = CalculateADX(bars, 14, currentIndex);
+                var adx = CalculateADX(bars, currentIndex, 14);
                 output.AddFeature("ml_macd_adx_product", macd * adx);
             }
 
             // Update histories
             _priceHistory.Add(close);
             _volumeHistory.Add(bar.TickVolume);
-            _volatilityHistory.Add(CalculateATR(bars, 14, currentIndex));
+            _volatilityHistory.Add(CalculateATR(bars, currentIndex, 14));
 
             _mlHistory.Add(new MLSnapshot
             {
@@ -266,9 +259,9 @@ namespace ForexFeatureGenerator.Features.Advanced
 
         private double CalculateTrendStrength(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
-            var ema21 = CalculateEMA(bars, 21, currentIndex);
-            var ema50 = CalculateEMA(bars, 50, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex, 9);
+            var ema21 = CalculateEMA(bars, currentIndex, 21);
+            var ema50 = CalculateEMA(bars, currentIndex, 50);
 
             var strength = 0.0;
             if (ema9 > ema21 && ema21 > ema50) strength = 1.0;
@@ -280,7 +273,7 @@ namespace ForexFeatureGenerator.Features.Advanced
 
         private double CalculateMomentumStrength(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             var roc = SafeDiv((double)(bars[currentIndex].Close - bars[currentIndex - 10].Close), (double)bars[currentIndex - 10].Close);
 
             // Normalize to [-1, 1]
@@ -345,7 +338,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             var scores = new List<double>();
 
             // ADX contribution
-            var adx = CalculateADX(bars, 14, currentIndex);
+            var adx = CalculateADX(bars, currentIndex, 14);
             scores.Add(Math.Min(1.0, adx / 50));
 
             // Linear regression slope
@@ -353,9 +346,9 @@ namespace ForexFeatureGenerator.Features.Advanced
             scores.Add(Math.Tanh(slope * 1000));
 
             // EMA alignment
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
-            var ema21 = CalculateEMA(bars, 21, currentIndex);
-            var ema50 = CalculateEMA(bars, 50, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex, 9);
+            var ema21 = CalculateEMA(bars, currentIndex, 21);
+            var ema50 = CalculateEMA(bars, currentIndex, 50);
 
             var alignment = 0.0;
             if (ema9 > ema21 && ema21 > ema50) alignment = 1.0;
@@ -372,7 +365,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             var scores = new List<double>();
 
             // RSI
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             scores.Add((rsi - 50) / 50);
 
             // MACD
@@ -390,11 +383,11 @@ namespace ForexFeatureGenerator.Features.Advanced
         {
             if (currentIndex < 20) return 0;
 
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
             var close = (double)bars[currentIndex].Close;
             var atrPct = SafeDiv(atr, close);
 
-            var stdDev = CalculateStdDev(bars, 20, currentIndex);
+            var stdDev = CalculateStdDev(bars, currentIndex, 20);
             var stdPct = SafeDiv(stdDev, close);
 
             // Normalize to [0, 1]
@@ -419,7 +412,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             scores.Add(spreadQuality);
 
             // Trend clarity
-            var adx = CalculateADX(bars, 14, currentIndex);
+            var adx = CalculateADX(bars, currentIndex, 14);
             var trendClarity = Math.Min(1.0, adx / 50);
             scores.Add(trendClarity);
 
@@ -494,32 +487,6 @@ namespace ForexFeatureGenerator.Features.Advanced
             return entropy;
         }
 
-        private (int type, double confidence) ClassifyMarketRegime(IReadOnlyList<OhlcBar> bars, int currentIndex)
-        {
-            if (currentIndex < 50) return (0, 0.5);
-
-            var adx = CalculateADX(bars, 14, currentIndex);
-            var atr = CalculateATR(bars, 14, currentIndex);
-            var avgAtr = 0.0;
-
-            for (int i = currentIndex - 49; i <= currentIndex; i++)
-            {
-                avgAtr += CalculateATR(bars, 14, i);
-            }
-            avgAtr /= 50;
-
-            // Trending: high ADX, normal volatility
-            if (adx > 25 && atr < avgAtr * 1.5)
-                return (1, Math.Min(1.0, adx / 50));
-
-            // Volatile: high volatility
-            if (atr > avgAtr * 1.5)
-                return (2, Math.Min(1.0, atr / (avgAtr * 2)));
-
-            // Ranging: low ADX
-            return (0, 1.0 - Math.Min(1.0, adx / 25));
-        }
-
         private double BinValue(double value, double mean, double std)
         {
             if (std < 1e-10) return 0;
@@ -579,8 +546,8 @@ namespace ForexFeatureGenerator.Features.Advanced
         {
             if (currentIndex < 26) return 0;
 
-            var ema12 = CalculateEMA(bars, 12, currentIndex);
-            var ema26 = CalculateEMA(bars, 26, currentIndex);
+            var ema12 = CalculateEMA(bars, currentIndex, 12);
+            var ema26 = CalculateEMA(bars, currentIndex, 26);
 
             return ema12 - ema26;
         }

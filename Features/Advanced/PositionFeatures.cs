@@ -145,6 +145,10 @@ namespace ForexFeatureGenerator.Features.Advanced
                 var correlation = CalculateSetupCorrelation(bars, currentIndex);
                 output.AddFeature("pos_setup_correlation", correlation);
             }
+            else
+            {
+                output.AddFeature("pos_setup_correlation", 0.0);
+            }
 
             // ===== ADVERSE SELECTION RISK =====
             output.AddFeature("pos_adverse_selection", CalculateAdverseSelectionRisk(bars, currentIndex));
@@ -169,16 +173,17 @@ namespace ForexFeatureGenerator.Features.Advanced
             });
         }
 
-        private (double quality, double entryScore, double riskReward, double successProbability) CalculateLongPositionQuality(IReadOnlyList<OhlcBar> bars, int currentIndex)
+        private (double quality, double entryScore, double riskReward, double successProbability) 
+            CalculateLongPositionQuality(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var scores = new List<double>();
 
             // 1. Trend alignment
             if (currentIndex >= 50)
             {
-                var ema9 = CalculateEMA(bars, 9, currentIndex);
-                var ema21 = CalculateEMA(bars, 21, currentIndex);
-                var ema50 = CalculateEMA(bars, 50, currentIndex);
+                var ema9 = CalculateEMA(bars, currentIndex, 9);
+                var ema21 = CalculateEMA(bars, currentIndex, 21);
+                var ema50 = CalculateEMA(bars, currentIndex, 50);
 
                 if (ema9 > ema21 && ema21 > ema50) scores.Add(1.0);
                 else if (ema9 > ema21) scores.Add(0.6);
@@ -186,7 +191,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // 2. Momentum
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi > 30 && rsi < 70) scores.Add(1.0);
             else if (rsi >= 70) scores.Add(0.5);
             else scores.Add(0.3);
@@ -211,11 +216,11 @@ namespace ForexFeatureGenerator.Features.Advanced
             else scores.Add(0.3);
 
             // 5. Volatility favorable
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
             var avgAtr = 0.0;
             for (int i = currentIndex - 19; i <= currentIndex; i++)
             {
-                avgAtr += CalculateATR(bars, 14, i);
+                avgAtr += CalculateATR(bars, i, 14);
             }
             avgAtr /= 20;
 
@@ -237,9 +242,9 @@ namespace ForexFeatureGenerator.Features.Advanced
             // 1. Trend alignment
             if (currentIndex >= 50)
             {
-                var ema9 = CalculateEMA(bars, 9, currentIndex);
-                var ema21 = CalculateEMA(bars, 21, currentIndex);
-                var ema50 = CalculateEMA(bars, 50, currentIndex);
+                var ema9 = CalculateEMA(bars, currentIndex, 9);
+                var ema21 = CalculateEMA(bars, currentIndex, 21);
+                var ema50 = CalculateEMA(bars, currentIndex, 50);
 
                 if (ema9 < ema21 && ema21 < ema50) scores.Add(1.0);
                 else if (ema9 < ema21) scores.Add(0.6);
@@ -247,7 +252,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // 2. Momentum
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi > 30 && rsi < 70) scores.Add(1.0);
             else if (rsi <= 30) scores.Add(0.5);
             else scores.Add(0.3);
@@ -272,11 +277,11 @@ namespace ForexFeatureGenerator.Features.Advanced
             else scores.Add(0.3);
 
             // 5. Volatility favorable
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
             var avgAtr = 0.0;
             for (int i = currentIndex - 19; i <= currentIndex; i++)
             {
-                avgAtr += CalculateATR(bars, 14, i);
+                avgAtr += CalculateATR(bars, i, 14);
             }
             avgAtr /= 20;
 
@@ -318,7 +323,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             if (support < 3.0) signals.Add(1.0);
 
             // RSI oversold recovery
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi > 30 && rsi < 50)
             {
                 var prevRsi = currentIndex >= 15 ? CalculateRSI(bars, 14, currentIndex - 1) : rsi;
@@ -353,7 +358,7 @@ namespace ForexFeatureGenerator.Features.Advanced
             if (resistance < 3.0) signals.Add(1.0);
 
             // RSI overbought reversal
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi < 70 && rsi > 50)
             {
                 var prevRsi = currentIndex >= 15 ? CalculateRSI(bars, 14, currentIndex - 1) : rsi;
@@ -382,7 +387,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double DetectLongExitSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Exit when momentum fades or resistance hit
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi > 70) return 1.0;
 
             var resistance = FindNearestResistance(bars, currentIndex);
@@ -394,7 +399,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double DetectShortExitSignal(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Exit when momentum fades or support hit
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             if (rsi < 30) return 1.0;
 
             var support = FindNearestSupport(bars, currentIndex);
@@ -444,7 +449,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private (double downsideRisk, double upsidePotential, double asymmetry, double stopDistance) CalculateRiskMetrics(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var close = (double)bars[currentIndex].Close;
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
 
             var support = FindNearestSupportLevel(bars, currentIndex);
             var resistance = FindNearestResistanceLevel(bars, currentIndex);
@@ -464,12 +469,12 @@ namespace ForexFeatureGenerator.Features.Advanced
             var resistanceStrength = CalculateResistanceStrength(bars, currentIndex);
 
             // Trend alignment
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
-            var ema21 = CalculateEMA(bars, 21, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex, 9);
+            var ema21 = CalculateEMA(bars, currentIndex, 21);
             var trendAlignment = SafeDiv(ema9 - ema21, ema21);
 
             // Momentum alignment
-            var rsi = CalculateRSI(bars, 14, currentIndex);
+            var rsi = CalculateRSI(bars, currentIndex, 14);
             var momentumAlignment = (rsi - 50) / 50;
 
             return (supportStrength, resistanceStrength, trendAlignment, momentumAlignment);
@@ -478,10 +483,10 @@ namespace ForexFeatureGenerator.Features.Advanced
         private (double longEntry, double shortEntry) FindOptimalEntryLevels(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             var close = (double)bars[currentIndex].Close;
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
 
             // Long entry: slight pullback to support or EMA
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex, 9);
             var longEntry = Math.Min(close - atr * 0.5, ema9);
 
             // Short entry: slight rally to resistance or EMA
@@ -493,7 +498,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double EstimateHoldingDuration(IReadOnlyList<OhlcBar> bars, int currentIndex, bool isLong)
         {
             // Estimate bars until target hit (simplified)
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
             var targetMove = TRAILING_STOP_ACTIVATION_PIPS * 0.0001;
 
             // Average bars per ATR move
@@ -517,9 +522,9 @@ namespace ForexFeatureGenerator.Features.Advanced
         private (double longAlignment, double shortAlignment, double consensus) CalculateMultiTimeframeAlignment(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Check alignment across different EMA periods
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
-            var ema21 = CalculateEMA(bars, 21, currentIndex);
-            var ema50 = CalculateEMA(bars, 50, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex, 9);
+            var ema21 = CalculateEMA(bars, currentIndex, 21);
+            var ema50 = CalculateEMA(bars, currentIndex, 50);
 
             var longAlignment = 0.0;
             if (ema9 > ema21) longAlignment += 0.5;
@@ -560,8 +565,8 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double CalculateSetupCorrelation(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Compare current setup to recent successful setups
-            var currentRsi = CalculateRSI(bars, 14, currentIndex);
-            var currentATR = CalculateATR(bars, 14, currentIndex);
+            var currentRsi = CalculateRSI(bars, currentIndex, 14);
+            var currentATR = CalculateATR(bars, currentIndex, 14);
 
             var similarities = new List<double>();
 
@@ -579,7 +584,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         {
             // Risk of being on wrong side
             var spread = (double)bars[currentIndex].AvgSpread;
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
 
             // Higher spread relative to ATR = higher adverse selection
             return Math.Min(1.0, SafeDiv(spread * 10, atr));
@@ -589,7 +594,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         {
             // Slippage estimate based on spread and volatility
             var spread = (double)bars[currentIndex].AvgSpread;
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
 
             // During high volatility, slippage increases
             return spread * (1 + Math.Min(2.0, SafeDiv(atr, spread)));
@@ -726,8 +731,8 @@ namespace ForexFeatureGenerator.Features.Advanced
         {
             if (currentIndex < 26) return 0;
 
-            var ema12 = CalculateEMA(bars, 12, currentIndex);
-            var ema26 = CalculateEMA(bars, 26, currentIndex);
+            var ema12 = CalculateEMA(bars, currentIndex, 12);
+            var ema26 = CalculateEMA(bars, currentIndex, 26);
 
             return ema12 - ema26;
         }

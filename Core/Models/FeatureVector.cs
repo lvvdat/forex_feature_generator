@@ -42,13 +42,8 @@ namespace ForexFeatureGenerator.Core.Models
                 Features[name] = 0.0;
                 return;
             }
-            Features[name] = value;
-        }
 
-        public void RemoveFeature(string name)
-        {
-            if (Features.ContainsKey(name))
-                Features.Remove(name);
+            Features[name] = value;
         }
     }
 }

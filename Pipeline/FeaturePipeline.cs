@@ -15,7 +15,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
         private readonly Dictionary<TimeSpan, IBarAggregator> _aggregators = new();
         private readonly List<BaseFeatureCalculator> _calculators = new();
         private readonly FeatureConfiguration _config;
-        private readonly FeatureStatistics _statistics = new();
 
         public FeaturePipeline(FeatureConfiguration? config = null)
         {
@@ -71,6 +70,27 @@ namespace ForexFeatureGenerator.Features.Pipeline
         }
 
         /// <summary>
+        /// Gets all feature names ordered by calculator priority (low to high)
+        /// Features from lower priority calculators appear first
+        /// </summary>
+        public List<string> GetFeatureNames()
+        {
+            var orderedFeatures = new List<string>();
+
+            // Sort calculators by priority (ascending)
+            var sortedCalculators = _calculators
+                .Where(c => c.IsEnabled)
+                .OrderBy(c => c.Priority);
+
+            foreach (var calculator in sortedCalculators)
+            {
+            }
+
+            return orderedFeatures;
+        }
+
+
+        /// <summary>
         /// Process incoming tick data through all aggregators
         /// </summary>
         public void ProcessTick(TickData tick)
@@ -111,9 +131,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
 
                     // Calculate features
                     calculator.Calculate(output, bars, bars.Count - 1);
-
-                    // Track feature statistics
-                    _statistics.UpdateStatistics(calculator.Name, output);
                 }
                 catch (Exception ex)
                 {
@@ -138,37 +155,11 @@ namespace ForexFeatureGenerator.Features.Pipeline
         /// </summary>
         private void PostProcessFeatures(FeatureVector features)
         {
-            // 1. Normalize features to consistent range
-            NormalizeFeatures(features);
-
-            // 2. Create interaction features
+            // 1. Create interaction features
             CreateInteractionFeatures(features);
 
-            // 3. Apply non-linear transformations
+            // 2. Apply non-linear transformations
             ApplyNonLinearTransformations(features);
-        }
-
-        /// <summary>
-        /// Normalize features to [-1, 1] range
-        /// </summary>
-        private void NormalizeFeatures(FeatureVector features)
-        {
-            var featuresToNormalize = features.Features
-                .Where(f => !f.Key.Contains("_signal") && !f.Key.Contains("_normalized"))
-                .ToList();
-
-            foreach (var feature in featuresToNormalize)
-            {
-                var stats = _statistics.GetFeatureStats(feature.Key);
-                if (stats != null && stats.StdDev > 0)
-                {
-                    // Z-score normalization
-                    var normalized = (feature.Value - stats.Mean) / stats.StdDev;
-                    // Clip to [-3, 3] and scale to [-1, 1]
-                    normalized = Math.Max(-3, Math.Min(3, normalized)) / 3;
-                    features.Features[feature.Key] = normalized;
-                }
-            }
         }
 
         /// <summary>
@@ -216,7 +207,7 @@ namespace ForexFeatureGenerator.Features.Pipeline
                 // Adjust direction based on regime
                 var regimeAdjusted = regime == 1 ? direction * 1.2 :  // Trending: amplify
                                     regime == 0 ? direction * -0.5 :  // Range: fade
-                                    direction * 0.8;                   // Volatile: reduce
+                                    direction * 0.8;                  // Volatile: reduce
                 features.AddFeature("interaction_regime_direction", Math.Max(-1, Math.Min(1, regimeAdjusted)));
             }
             else
@@ -404,133 +395,6 @@ namespace ForexFeatureGenerator.Features.Pipeline
             var agreement = Math.Abs(CalculateAgreement(signals));
 
             return (avgStrength + agreement) / 2;
-        }
-
-        /// <summary>
-        /// Get feature importance ranking
-        /// </summary>
-        public Dictionary<string, double> GetFeatureImportance()
-        {
-            return _statistics.GetAllFeatureImportance()
-                .OrderByDescending(f => f.Value)
-                .ToDictionary(f => f.Key, f => f.Value);
-        }
-
-        /// <summary>
-        /// Get feature statistics for analysis
-        /// </summary>
-        public FeatureStatistics GetStatistics()
-        {
-            return _statistics;
-        }
-
-        /// <summary>
-        /// Reset all calculators and statistics
-        /// </summary>
-        public void Reset()
-        {
-            foreach (var calculator in _calculators)
-            {
-                calculator.Reset();
-            }
-            _statistics.Reset();
-        }
-    }
-
-    /// <summary>
-    /// Feature statistics tracking
-    /// </summary>
-    public class FeatureStatistics
-    {
-        private readonly Dictionary<string, RunningStats> _stats = new();
-        private readonly Dictionary<string, double> _importance = new();
-        private readonly Dictionary<(string, string), double> _correlations = new();
-
-        public void UpdateStatistics(string calculatorName, FeatureVector features)
-        {
-            foreach (var feature in features.Features)
-            {
-                var key = feature.Key;
-                if (!_stats.ContainsKey(key))
-                {
-                    _stats[key] = new RunningStats();
-                }
-
-                _stats[key].Update(feature.Value);
-
-                // Update importance based on signal strength
-                if (key.Contains("signal") || key.Contains("composite"))
-                {
-                    _importance[key] = (_importance.GetValueOrDefault(key, 0) * 0.99) +
-                                      Math.Abs(feature.Value) * 0.01;
-                }
-            }
-        }
-
-        public RunningStats? GetFeatureStats(string feature)
-        {
-            return _stats.GetValueOrDefault(feature);
-        }
-
-        public double GetFeatureImportance(string feature)
-        {
-            return _importance.GetValueOrDefault(feature, 0.5);
-        }
-
-        public List<string> GetLowVarianceFeatures(double threshold)
-        {
-            return _stats
-                .Where(s => s.Value.Variance < threshold)
-                .Select(s => s.Key)
-                .ToList();
-        }
-
-        public List<(string, string)> GetHighlyCorrelatedFeatures(double threshold)
-        {
-            return _correlations
-                .Where(c => Math.Abs(c.Value) > threshold)
-                .Select(c => c.Key)
-                .ToList();
-        }
-
-        public Dictionary<string, double> GetAllFeatureImportance()
-        {
-            return new Dictionary<string, double>(_importance);
-        }
-
-        public void Reset()
-        {
-            _stats.Clear();
-            _importance.Clear();
-            _correlations.Clear();
-        }
-
-        public class RunningStats
-        {
-            private double _m = 0;
-            private double _s = 0;
-            private int _n = 0;
-
-            public double Mean => _n > 0 ? _m : 0;
-            public double Variance => _n > 1 ? _s / (_n - 1) : 0;
-            public double StdDev => Math.Sqrt(Variance);
-            public int Count => _n;
-
-            public void Update(double value)
-            {
-                _n++;
-                if (_n == 1)
-                {
-                    _m = value;
-                    _s = 0;
-                }
-                else
-                {
-                    var oldM = _m;
-                    _m = oldM + (value - oldM) / _n;
-                    _s = _s + (value - oldM) * (value - _m);
-                }
-            }
         }
     }
 }

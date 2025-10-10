@@ -35,39 +35,33 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // ===== SEQUENCE EMBEDDINGS =====
             // Create price sequence embeddings (like word embeddings for time series)
-            if (currentIndex >= 10)
-            {
-                var priceSeq = ExtractPriceSequence(bars, currentIndex, 10);
-                var priceEmbedding = CalculateSequenceEmbedding(priceSeq);
-                output.AddFeature("dl_price_embedding", priceEmbedding);
+            var priceSeq = ExtractPriceSequence(bars, currentIndex, 10);
+            var priceEmbedding = CalculateSequenceEmbedding(priceSeq);
+            output.AddFeature("dl_price_embedding", priceEmbedding);
 
-                var volumeSeq = ExtractVolumeSequence(bars, currentIndex, 10);
-                var volumeEmbedding = CalculateSequenceEmbedding(volumeSeq);
-                output.AddFeature("dl_volume_embedding", volumeEmbedding);
+            var volumeSeq = ExtractVolumeSequence(bars, currentIndex, 10);
+            var volumeEmbedding = CalculateSequenceEmbedding(volumeSeq);
+            output.AddFeature("dl_volume_embedding", volumeEmbedding);
 
-                // Combined multi-modal embedding
-                output.AddFeature("dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
-            }
+            // Combined multi-modal embedding
+            output.AddFeature("dl_multimodal_embedding", (priceEmbedding + volumeEmbedding) / 2);
 
             // ===== ATTENTION-LIKE MECHANISMS =====
             // Calculate attention weights for recent history
-            if (currentIndex >= 20)
+            var attentionWeights = CalculateAttentionWeights(bars, currentIndex, 20);
+            var contextVector = CalculateContextVector(bars, currentIndex, attentionWeights);
+
+            output.AddFeature("dl_attention_focus", attentionWeights.Max());
+            output.AddFeature("dl_attention_spread", CalculateAttentionSpread(attentionWeights));
+            output.AddFeature("dl_context_strength", contextVector);
+
+            // Store attention snapshot
+            _attentionHistory.Add(new AttentionSnapshot
             {
-                var attentionWeights = CalculateAttentionWeights(bars, currentIndex, 20);
-                var contextVector = CalculateContextVector(bars, currentIndex, attentionWeights);
-
-                output.AddFeature("dl_attention_focus", attentionWeights.Max());
-                output.AddFeature("dl_attention_spread", CalculateAttentionSpread(attentionWeights));
-                output.AddFeature("dl_context_strength", contextVector);
-
-                // Store attention snapshot
-                _attentionHistory.Add(new AttentionSnapshot
-                {
-                    Timestamp = bar.Timestamp,
-                    AttentionWeights = attentionWeights,
-                    FocusScore = attentionWeights.Max()
-                });
-            }
+                Timestamp = bar.Timestamp,
+                AttentionWeights = attentionWeights,
+                FocusScore = attentionWeights.Max()
+            });
 
             // ===== TEMPORAL CONVOLUTION FEATURES =====
             // Simulate 1D convolutions over time series
@@ -82,36 +76,30 @@ namespace ForexFeatureGenerator.Features.Advanced
             }
 
             // ===== POOLING OPERATIONS =====
-            if (currentIndex >= 20)
-            {
-                // Max pooling
-                var (maxPoolPrice, maxPoolVolume) = ApplyMaxPooling(bars, currentIndex, 20, 5);
-                output.AddFeature("dl_maxpool_price", maxPoolPrice);
-                output.AddFeature("dl_maxpool_volume", maxPoolVolume);
+            // Max pooling
+            var (maxPoolPrice, maxPoolVolume) = ApplyMaxPooling(bars, currentIndex, 20, 5);
+            output.AddFeature("dl_maxpool_price", maxPoolPrice);
+            output.AddFeature("dl_maxpool_volume", maxPoolVolume);
 
-                // Average pooling
-                var (avgPoolPrice, avgPoolVolume) = ApplyAveragePooling(bars, currentIndex, 20, 5);
-                output.AddFeature("dl_avgpool_price", avgPoolPrice);
-                output.AddFeature("dl_avgpool_volume", avgPoolVolume);
-            }
+            // Average pooling
+            var (avgPoolPrice, avgPoolVolume) = ApplyAveragePooling(bars, currentIndex, 20, 5);
+            output.AddFeature("dl_avgpool_price", avgPoolPrice);
+            output.AddFeature("dl_avgpool_volume", avgPoolVolume);
 
             // ===== RECURRENT FEATURES (LSTM-like) =====
             // Simulate hidden state evolution
-            if (currentIndex >= 10)
-            {
-                var hiddenState = CalculatePseudoHiddenState(bars, currentIndex);
-                output.AddFeature("dl_hidden_state", hiddenState);
+            var hiddenState = CalculatePseudoHiddenState(bars, currentIndex);
+            output.AddFeature("dl_hidden_state", hiddenState);
 
-                // Cell state (memory)
-                var cellState = CalculatePseudoCellState(bars, currentIndex);
-                output.AddFeature("dl_cell_state", cellState);
+            // Cell state (memory)
+            var cellState = CalculatePseudoCellState(bars, currentIndex);
+            output.AddFeature("dl_cell_state", cellState);
 
-                // Gates simulation
-                var (forgetGate, inputGate, outputGate) = CalculatePseudoGates(bars, currentIndex);
-                output.AddFeature("dl_forget_gate", forgetGate);
-                output.AddFeature("dl_input_gate", inputGate);
-                output.AddFeature("dl_output_gate", outputGate);
-            }
+            // Gates simulation
+            var (forgetGate, inputGate, outputGate) = CalculatePseudoGates(bars, currentIndex);
+            output.AddFeature("dl_forget_gate", forgetGate);
+            output.AddFeature("dl_input_gate", inputGate);
+            output.AddFeature("dl_output_gate", outputGate);
 
             // ===== TEMPORAL PATTERNS =====
             // Identify recurring patterns in sequences
@@ -126,15 +114,12 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // ===== AUTOENCODER-LIKE FEATURES =====
             // Dimensionality reduction representation
-            if (currentIndex >= 20)
-            {
-                var bottleneck = CalculateBottleneckRepresentation(bars, currentIndex);
-                output.AddFeature("dl_bottleneck_feat", bottleneck);
+            var bottleneck = CalculateBottleneckRepresentation(bars, currentIndex);
+            output.AddFeature("dl_bottleneck_feat", bottleneck);
 
-                // Reconstruction error (anomaly detection)
-                var reconstructionError = CalculateReconstructionError(bars, currentIndex);
-                output.AddFeature("dl_reconstruction_error", reconstructionError);
-            }
+            // Reconstruction error (anomaly detection)
+            var reconstructionError = CalculateReconstructionError(bars, currentIndex);
+            output.AddFeature("dl_reconstruction_error", reconstructionError);
 
             // ===== MULTI-SCALE TEMPORAL FEATURES =====
             // Features at different time resolutions
@@ -150,25 +135,19 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // ===== SEQUENCE-TO-SEQUENCE FEATURES =====
             // Encoder-decoder style features
-            if (currentIndex >= 20)
-            {
-                var encodedSeq = EncodeSequence(bars, currentIndex, 20);
-                output.AddFeature("dl_encoded_seq", encodedSeq);
+            var encodedSeq = EncodeSequence(bars, currentIndex, 20);
+            output.AddFeature("dl_encoded_seq", encodedSeq);
 
-                var decodedState = DecodeToCurrentState(bars, currentIndex);
-                output.AddFeature("dl_decoded_state", decodedState);
-            }
+            var decodedState = DecodeToCurrentState(bars, currentIndex);
+            output.AddFeature("dl_decoded_state", decodedState);
 
             // ===== GRAPH-LIKE FEATURES =====
             // Time series as graph nodes with edges
-            if (currentIndex >= 10)
-            {
-                var nodeImportance = CalculateNodeImportance(bars, currentIndex);
-                output.AddFeature("dl_node_importance", nodeImportance);
+            var nodeImportance = CalculateNodeImportance(bars, currentIndex);
+            output.AddFeature("dl_node_importance", nodeImportance);
 
-                var edgeStrength = CalculateAverageEdgeStrength(bars, currentIndex);
-                output.AddFeature("dl_edge_strength", edgeStrength);
-            }
+            var edgeStrength = CalculateAverageEdgeStrength(bars, currentIndex);
+            output.AddFeature("dl_edge_strength", edgeStrength);
 
             // ===== TRANSFORMER-LIKE FEATURES =====
             // Positional encoding
@@ -177,37 +156,25 @@ namespace ForexFeatureGenerator.Features.Advanced
             output.AddFeature("dl_pos_encoding_cos", posEncoding.cos);
 
             // Self-attention across multiple heads
-            if (currentIndex >= 20)
-            {
-                var multiHeadAttention = CalculateMultiHeadAttention(bars, currentIndex);
-                output.AddFeature("dl_multihead_attention", multiHeadAttention);
-            }
+            var multiHeadAttention = CalculateMultiHeadAttention(bars, currentIndex);
+            output.AddFeature("dl_multihead_attention", multiHeadAttention);
 
             // ===== RESIDUAL CONNECTIONS =====
             // Residual features (current vs predicted from past)
-            if (currentIndex >= 10)
-            {
-                var predicted = PredictFromHistory(bars, currentIndex);
-                var residual = (double)bar.Close - predicted;
-                output.AddFeature("dl_residual", residual * 10000);
-                output.AddFeature("dl_residual_ratio", SafeDiv(residual, predicted));
-            }
+            var predicted = PredictFromHistory(bars, currentIndex);
+            var residual = (double)bar.Close - predicted;
+            output.AddFeature("dl_residual", residual * 10000);
+            output.AddFeature("dl_residual_ratio", SafeDiv(residual, predicted));
 
             // ===== LAYER NORMALIZATION =====
             // Normalized features across the sequence
-            if (currentIndex >= 20)
-            {
-                var layerNorm = CalculateLayerNormalization(bars, currentIndex);
-                output.AddFeature("dl_layer_norm", layerNorm);
-            }
+            var layerNorm = CalculateLayerNormalization(bars, currentIndex);
+            output.AddFeature("dl_layer_norm", layerNorm);
 
             // ===== DROPOUT-LIKE FEATURES =====
             // Feature importance through random dropping
-            if (currentIndex >= 20)
-            {
-                var robustness = CalculateFeatureRobustness(bars, currentIndex);
-                output.AddFeature("dl_feature_robustness", robustness);
-            }
+            var robustness = CalculateFeatureRobustness(bars, currentIndex);
+            output.AddFeature("dl_feature_robustness", robustness);
 
             // ===== SEQUENCE COMPLEXITY =====
             // Measure of sequence predictability
@@ -222,14 +189,11 @@ namespace ForexFeatureGenerator.Features.Advanced
 
             // ===== TEMPORAL DIFFERENCE =====
             // TD-learning inspired features
-            if (currentIndex >= 5)
-            {
-                var tdError = CalculateTDError(bars, currentIndex);
-                output.AddFeature("dl_td_error", tdError);
+            var tdError = CalculateTDError(bars, currentIndex);
+            output.AddFeature("dl_td_error", tdError);
 
-                var tdTarget = CalculateTDTarget(bars, currentIndex);
-                output.AddFeature("dl_td_target", tdTarget);
-            }
+            var tdTarget = CalculateTDTarget(bars, currentIndex);
+            output.AddFeature("dl_td_target", tdTarget);
         }
 
         private double[] ExtractPriceSequence(IReadOnlyList<OhlcBar> bars, int currentIndex, int length)
@@ -408,11 +372,11 @@ namespace ForexFeatureGenerator.Features.Advanced
         private (double forget, double input, double output) CalculatePseudoGates(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Simulate LSTM gates using volatility and momentum
-            var atr = CalculateATR(bars, 14, currentIndex);
+            var atr = CalculateATR(bars, currentIndex, 14);
             var avgAtr = 0.0;
             for (int i = currentIndex - 19; i <= currentIndex; i++)
             {
-                avgAtr += CalculateATR(bars, 14, i);
+                avgAtr += CalculateATR(bars, i, 14);
             }
             avgAtr /= 20;
 
@@ -424,8 +388,8 @@ namespace ForexFeatureGenerator.Features.Advanced
             var inputGate = Math.Min(1.0, priceChange / (atr + 1e-10));
 
             // Output gate: based on trend strength
-            var ema9 = CalculateEMA(bars, 9, currentIndex);
-            var ema21 = CalculateEMA(bars, 21, currentIndex);
+            var ema9 = CalculateEMA(bars, currentIndex,9);
+            var ema21 = CalculateEMA(bars, currentIndex, 21);
             var outputGate = Math.Abs(SafeDiv(ema9 - ema21, ema21));
 
             return (forgetGate, inputGate, outputGate);
@@ -532,7 +496,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double CalculateMultiScaleFeature(IReadOnlyList<OhlcBar> bars, int currentIndex, int scale)
         {
             // Moving average at different scales
-            return CalculateSMA(bars, scale, currentIndex);
+            return CalculateSMA(bars, currentIndex, scale);
         }
 
         private double EncodeSequence(IReadOnlyList<OhlcBar> bars, int currentIndex, int length)
@@ -599,7 +563,7 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double PredictFromHistory(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Simple linear prediction
-            return CalculateSMA(bars, 5, currentIndex);
+            return CalculateSMA(bars, currentIndex, 5);
         }
 
         private double CalculateLayerNormalization(IReadOnlyList<OhlcBar> bars, int currentIndex)
@@ -620,9 +584,9 @@ namespace ForexFeatureGenerator.Features.Advanced
         private double CalculateFeatureRobustness(IReadOnlyList<OhlcBar> bars, int currentIndex)
         {
             // Robustness = consistency across different window sizes
-            var ema5 = CalculateEMA(bars, 5, currentIndex);
-            var ema10 = CalculateEMA(bars, 10, currentIndex);
-            var ema20 = CalculateEMA(bars, 20, currentIndex);
+            var ema5 = CalculateEMA(bars, currentIndex, 5);
+            var ema10 = CalculateEMA(bars, currentIndex, 10);
+            var ema20 = CalculateEMA(bars, currentIndex, 20);
 
             var variance = new[] { ema5, ema10, ema20 }.Select(v => Math.Pow(v - new[] { ema5, ema10, ema20 }.Average(), 2)).Average();
 
