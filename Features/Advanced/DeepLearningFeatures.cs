@@ -1,7 +1,6 @@
-﻿using ForexFeatureGenerator.Core.Infrastructure;
-using ForexFeatureGenerator.Core.Models;
+﻿using ForexFeatureGenerator.Core.Models;
 using ForexFeatureGenerator.Features.Core;
-using System.Linq;
+using ForexFeatureGenerator.Core.Infrastructure;
 
 namespace ForexFeatureGenerator.Features.Advanced
 {
