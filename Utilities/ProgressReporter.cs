@@ -1,32 +1,68 @@
 ﻿using System.Diagnostics;
-using System.Reflection.Metadata;
 
 namespace ForexFeatureGenerator.Utilities
 {
     public class ProgressReporter
     {
-        private readonly int _total;
-        private readonly string _title;
+        private readonly string _taskName;
+        private readonly int _totalItems;
         private readonly Stopwatch _stopwatch;
+        private int _lastReportedPercentage;
+        private readonly int _reportInterval;
 
-        public ProgressReporter(string title, int total)
+        public ProgressReporter(string taskName, int totalItems, int reportInterval = 10)
         {
-            _title = title;
-            _total = total;
+            _taskName = taskName;
+            _totalItems = totalItems;
+            _reportInterval = reportInterval;
             _stopwatch = Stopwatch.StartNew();
+            _lastReportedPercentage = 0;
+
+            Console.WriteLine($"  Starting: {_taskName} ({totalItems:N0} items)");
         }
 
-        public void Update(int current, string extra = "")
+        public void Update(int currentItem)
         {
-            var percent = (double)current / _total;
-            var bar = new string('█', (int)(percent * 30)) + new string('░', 30 - (int)(percent * 30));
-            Console.Write($"\r  {_title}: [{bar}] {percent:P0} {extra}");
+            var percentage = (int)((currentItem + 1) * 100.0 / _totalItems);
+
+            if (percentage >= _lastReportedPercentage + _reportInterval || percentage == 100)
+            {
+                _lastReportedPercentage = percentage;
+
+                var elapsed = _stopwatch.Elapsed;
+                var itemsProcessed = currentItem + 1;
+                var itemsPerSecond = itemsProcessed / elapsed.TotalSeconds;
+                var estimatedTotal = TimeSpan.FromSeconds(_totalItems / itemsPerSecond);
+                var estimatedRemaining = estimatedTotal - elapsed;
+
+                Console.WriteLine($"    {percentage}% complete - " +
+                                $"{itemsProcessed:N0}/{_totalItems:N0} items - " +
+                                $"{itemsPerSecond:F0} items/sec - " +
+                                $"ETA: {FormatTimeSpan(estimatedRemaining)}");
+            }
         }
 
         public void Complete()
         {
-            Update(_total);
-            Console.WriteLine($" ✓ ({_stopwatch.Elapsed:mm\\:ss})");
+            _stopwatch.Stop();
+            var totalTime = _stopwatch.Elapsed;
+            var itemsPerSecond = _totalItems / totalTime.TotalSeconds;
+
+            Console.WriteLine($"  ✓ Completed: {_taskName}");
+            Console.WriteLine($"    Total time: {FormatTimeSpan(totalTime)} - Average: {itemsPerSecond:F1} items/sec");
+        }
+
+        private string FormatTimeSpan(TimeSpan ts)
+        {
+            if (ts.TotalSeconds < 0)
+                return "calculating...";
+
+            if (ts.TotalMinutes < 1)
+                return $"{ts.Seconds}s";
+            else if (ts.TotalHours < 1)
+                return $"{ts.Minutes}m {ts.Seconds}s";
+            else
+                return $"{(int)ts.TotalHours}h {ts.Minutes}m";
         }
     }
 }

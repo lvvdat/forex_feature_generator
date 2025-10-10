@@ -1,15 +1,14 @@
-﻿using System.Text;
-using System.Diagnostics;
-
-using Parquet;
-using Parquet.Data;
-using Parquet.Schema;
-
-using ForexFeatureGenerator.Core.Models;
+﻿using ForexFeatureGenerator.Core.Models;
+using ForexFeatureGenerator.Core.Statistics;
+using ForexFeatureGenerator.Features.Pipeline;
 using ForexFeatureGenerator.Label;
 using ForexFeatureGenerator.Pipeline;
 using ForexFeatureGenerator.Utilities;
-using ForexFeatureGenerator.Features.Pipeline;
+using Parquet;
+using Parquet.Data;
+using Parquet.Schema;
+using System.Diagnostics;
+using System.Text;
 
 namespace ForexFeatureGenerator
 {
@@ -45,9 +44,14 @@ namespace ForexFeatureGenerator
             if (!Directory.Exists("logs"))
                 Directory.CreateDirectory("logs");
 
-            var outputPath = Path.Combine(outputDir, "features_labels.parquet");
+            var rawOutputPath = Path.Combine(outputDir, "features_labels_raw.parquet");
+            var normalizedOutputPath = Path.Combine(outputDir, "features_labels_normalized.parquet");
+            var statsPath = Path.Combine(outputDir, "feature_statistics.csv");
 
-            if (!File.Exists(outputPath))
+            FeatureStatisticsCollector? statisticsCollector = null;
+
+            // ===== PHASE 1 & 2: FEATURE GENERATION =====
+            if (!File.Exists(rawOutputPath))
             {
                 // ===== PHASE 1: DATA LOADING =====
                 Log("PHASE 1: DATA LOADING", ConsoleColor.Cyan);
@@ -56,16 +60,55 @@ namespace ForexFeatureGenerator
                 var tickData = await LoadTickDataAsync(inputPath);
                 ValidateTickData(tickData);
 
-                // ===== PHASE 2: LABEL GENERATION =====
-                Log("\nPHASE 2: LABEL GENERATION", ConsoleColor.Cyan);
+                // ===== PHASE 2: FEATURE & LABEL GENERATION =====
+                Log("\nPHASE 2: FEATURE & LABEL GENERATION", ConsoleColor.Cyan);
                 Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
 
-                await GenerateFeaturesAndLabelsAsync(tickData, outputPath);                
+                statisticsCollector = await GenerateFeaturesAndLabelsAsync(tickData, rawOutputPath);
+
+                // Save statistics
+                if (statisticsCollector != null)
+                {
+                    statisticsCollector.SaveStatistics(statsPath);
+                    Log($"  ✓ Statistics saved to: {statsPath}");
+                }
             }
             else
             {
-                Log($"Features and labels file already exists at: {outputPath}", ConsoleColor.Yellow);
+                Log($"Raw features file already exists at: {rawOutputPath}", ConsoleColor.Yellow);
+
+                // Load existing statistics if available
+                if (File.Exists(statsPath))
+                {
+                    statisticsCollector = FeatureStatisticsCollector.LoadStatistics(statsPath);
+                    Log($"  ✓ Loaded statistics from: {statsPath}");
+                }
             }
+
+            // ===== PHASE 3: DATA NORMALIZATION =====
+            if (statisticsCollector != null && !File.Exists(normalizedOutputPath))
+            {
+                Log("\nPHASE 3: DATA NORMALIZATION", ConsoleColor.Cyan);
+                Log("━".PadRight(60, '━'), ConsoleColor.Cyan);
+
+                var normalizer = new DataNormalizer(statisticsCollector, _logWriter);
+                await normalizer.NormalizeDataAsync(rawOutputPath, normalizedOutputPath);
+
+                // Validate normalization
+                await normalizer.ValidateNormalizationAsync(normalizedOutputPath);
+
+                Log($"\n  ✓ Normalized data saved to: {normalizedOutputPath}", ConsoleColor.Green);
+            }
+            else if (File.Exists(normalizedOutputPath))
+            {
+                Log($"Normalized features file already exists at: {normalizedOutputPath}", ConsoleColor.Yellow);
+            }
+            else
+            {
+                Log("⚠️ Cannot normalize: Statistics not available", ConsoleColor.Red);
+            }
+
+            Log("\n✓ Processing complete!", ConsoleColor.Green);
         }
 
         // ============= DATA LOADING FUNCTIONS =============
@@ -137,8 +180,11 @@ namespace ForexFeatureGenerator
         }
 
         // ============= LABEL GENERATION FUNCTIONS =============
-        static async Task GenerateFeaturesAndLabelsAsync(List<TickData> tickData, string outputPath)
+        // ============= FEATURE & LABEL GENERATION WITH STATISTICS =============
+        static async Task<FeatureStatisticsCollector> GenerateFeaturesAndLabelsAsync(List<TickData> tickData, string outputPath)
         {
+            var statisticsCollector = new FeatureStatisticsCollector();
+
             await Task.Run(async () =>
             {
                 Log("Building feature pipeline...");
@@ -265,6 +311,9 @@ namespace ForexFeatureGenerator
                                     {
                                         labelResults.Add(labelResult);
 
+                                        // Update statistics collector
+                                        statisticsCollector.UpdateFeatures(features.Features);
+
                                         // append row into buffers
                                         foreach (var fname in featureNames!)
                                         {
@@ -288,8 +337,7 @@ namespace ForexFeatureGenerator
                             }
                         }
 
-                        if (i % 1000 == 0)
-                            progress.Update(i, $"Bars: {barsProcessed}, Labels: {labelResults.Count}");
+                        progress.Update(i);
                     }
 
                     await FlushBatchAsync();
@@ -301,9 +349,12 @@ namespace ForexFeatureGenerator
                     if (featureNames != null)
                     {
                         Log($"  Features: {string.Join(",", featureNames)}");
-                    }                        
+                    }
 
                     AnalyzeGeneratedLabels(labelResults);
+
+                    // Finalize statistics
+                    statisticsCollector.FinalizeStatistics();
                 }
                 catch (Exception ex)
                 {
@@ -315,6 +366,8 @@ namespace ForexFeatureGenerator
                     outStream?.Dispose();
                 }
             });
+
+            return statisticsCollector;
         }
 
         static FeaturePipeline BuildComprehensivePipeline()
