@@ -228,57 +228,6 @@ namespace ForexFeatureGenerator.Pipeline
             }
         }
 
-        /// <summary>
-        /// Validate normalization by checking value ranges
-        /// </summary>
-        public async Task ValidateNormalizationAsync(string normalizedPath)
-        {
-            Log("\nValidating normalized data...");
-
-            using var inputStream = File.OpenRead(normalizedPath);
-            using var reader = await ParquetReader.CreateAsync(inputStream);
-
-            var schema = reader.Schema;
-            var featureRanges = new Dictionary<string, (double min, double max, double mean)>();
-
-            // Read first row group for validation
-            using var rowGroupReader = reader.OpenRowGroupReader(0);
-
-            foreach (var field in schema.DataFields)
-            {
-                if (field.Name == "label" || field.Name == "timestamp") continue;
-
-                var column = await rowGroupReader.ReadColumnAsync(field);
-                var values = new List<double>();
-
-                for (int i = 0; i < Math.Min(1000, column.Data.Length); i++)
-                {
-                    values.Add(Convert.ToDouble(column.Data.GetValue(i)));
-                }
-
-                if (values.Count > 0)
-                {
-                    featureRanges[field.Name] = (values.Min(), values.Max(), values.Average());
-                }
-            }
-
-            // Report validation results
-            Log("\n  Feature ranges (sample of first 1000 rows):");
-            Log("  " + new string('-', 80));
-
-            var grouped = featureRanges.GroupBy(kvp => _config.GetNormalizationType(kvp.Key));
-
-            foreach (var group in grouped)
-            {
-                Log($"\n  {group.Key} features:");
-                foreach (var kvp in group.OrderBy(x => x.Key))
-                {
-                    var (min, max, mean) = kvp.Value;
-                    Log($"    {kvp.Key,-40} Min: {min,8:F4}  Max: {max,8:F4}  Mean: {mean,8:F4}");
-                }
-            }
-        }
-
         private void Log(string message, ConsoleColor color = ConsoleColor.White)
         {
             var timestamp = DateTime.Now.ToString("HH:mm:ss");

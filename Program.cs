@@ -94,9 +94,6 @@ namespace ForexFeatureGenerator
                 var normalizer = new DataNormalizer(statisticsCollector, _logWriter);
                 await normalizer.NormalizeDataAsync(rawOutputPath, normalizedOutputPath);
 
-                // Validate normalization
-                await normalizer.ValidateNormalizationAsync(normalizedOutputPath);
-
                 Log($"\n  ✓ Normalized data saved to: {normalizedOutputPath}", ConsoleColor.Green);
             }
             else if (File.Exists(normalizedOutputPath))

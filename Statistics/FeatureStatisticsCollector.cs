@@ -130,7 +130,7 @@ namespace ForexFeatureGenerator.Core.Statistics
             FinalizeStatistics();
 
             using var writer = new StreamWriter(path);
-            writer.WriteLine("Feature,Count,Mean,StdDev,Min,Max,Q1,Median,Q3,IQR");
+            writer.WriteLine("feature,count,mean,stddev,min,max,q1,median,q3,iqr");
 
             foreach (var kvp in _featureStats.OrderBy(x => x.Key))
             {
